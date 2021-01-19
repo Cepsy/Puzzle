@@ -48,8 +48,16 @@ struct Plan{
 
 struct PuzzleState{
     int HG, H, HD;
-    int MG, M, MD;
+    int  G, M,  D;
     int BG, B, BD;
+
+    /* positionnement de labels initial
+     *
+     * 2, 3, 4,
+     * 9, 1, 5,
+     * 8, 7, 6,
+     *
+     * */
 
     bool checkingH;
     bool checkingG;
@@ -68,37 +76,38 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
-
-    void displayMesh(MyMesh *_mesh, DisplayMode mode = DisplayMode::Normal);
-    void resetAllColorsAndThickness(MyMesh* _mesh);
-    void resetFacesLabels(MyMesh *_mesh);
-    void resetVertexLabels(MyMesh *_mesh);
-
-    void connexCompoFlagging(MyMesh *_mesh, int currentLabel, int currentFace);
-    void piecesColoration(MyMesh *_mesh);
-
-    bool isCutByPlan(MyMesh *_mesh, int faceID, Plan plan);
-    bool edgeIsCutByPlan(MyMesh *_mesh, int edgeID, Plan plan);
-    QVector3D getCenterOfFace(MyMesh *_mesh, int faceID);
-
-
     void displayObjectsValues();
+
+    //decoupage
+    bool isCutByPlan(MyMesh *_mesh, int faceID, Plan plan);
     void generateCenterCoordinates();
     float scalar_product(QVector3D a, QVector3D b);
     QVector3D intersection_calculation(QVector3D plane_point, QVector3D plane_normal, QVector3D a, QVector3D b);
+    bool edgeIsCutByPlan(MyMesh *_mesh, int edgeID, Plan plan);
 
+    //labelisation & coloration
+    QVector3D getCenterOfFace(MyMesh *_mesh, int faceID);
+    void connexCompoFlagging(MyMesh *_mesh, int currentLabel, int currentFace);
+    void piecesColoration(MyMesh *_mesh);
+    void resetFacesLabels(MyMesh *_mesh);
+    void resetVertexLabels(MyMesh *_mesh);
+    void correctLabelisation(MyMesh *_mesh);
+
+    //trajectories calculations
     vector<QVector3D> calcTrajectoryCoordinates(QVector3D M, QVector3D O, string orientation);
     void trajectoryColorationUpdate(MyMesh *_mesh);
     void resetTrajectoryChecking();
     void addTrajectory(MyMesh *_mesh);
     void removeTrajectory(MyMesh *_mesh);
 
-    void correctLabelisation(MyMesh *_mesh);
+    //collisions checking
+    float getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b);
+    void displayTrajectoryOnPlane(MyMesh *_mesh); //or not
+    void checkingTrajectoryCollisions(MyMesh *_mesh);
 
-    void applySpacing(MyMesh *_mesh);
-
-    void generateIntersectVertexFaces(MyMesh* _mesh, int faceID, Plan p);
-    void generateMeshCompletion(MyMesh *_mesh);
+    //squellette
+    void displayMesh(MyMesh *_mesh, DisplayMode mode = DisplayMode::Normal);
+    void resetAllColorsAndThickness(MyMesh* _mesh);
 
 private slots:
 
@@ -130,7 +139,20 @@ private:
     CoorPieces corps;
 
     PuzzleState puzzle;
-    vector<VertexHandle> trajectoryBuffer;
+    vector<VertexHandle> trajectoryBuffer1;
+    vector<VertexHandle> trajectoryBuffer2;
+    vector<VertexHandle> trajectoryBuffer3;
+
+    /* vertex labels when they are part of
+     * a piece trajectory :
+     *
+     * 12, 13, 14
+     * 19,  x, 15
+     * 18, 17, 16
+     *
+     * otherwise 0
+     * */
+
 
     vector<int> faceLabeling;
     Plan p_droite;

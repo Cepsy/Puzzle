@@ -223,16 +223,7 @@ void MainWindow::on_pushButton_yMaxPlus_clicked(){
 
 // ------------------------------------ flaggings & colorations ------------------------
 
-void MainWindow::connexCompoFlagging(MyMesh* _mesh, int currentLabel, int currentFace){
-    FaceHandle fh = _mesh->face_handle(currentFace);
-    _mesh->data(fh).label = currentLabel;
-    MyMesh::FaceFaceIter ff_it = _mesh->ff_begin(fh);
-    for(ff_it ; ff_it.is_valid() ; ++ff_it){
-        if(_mesh->data(*ff_it).label == 0){
-            connexCompoFlagging(_mesh, currentLabel, (*ff_it).idx());
-        }
-    }
-}
+
 
 
 void MainWindow::piecesColoration(MyMesh *_mesh){
@@ -310,10 +301,12 @@ void MainWindow::trajectoryColorationUpdate(MyMesh *_mesh){
         else _mesh->set_color(*f_it, colors.at(_mesh->data(*f_it).label));
     }
 
+
+    //trajectory vertices
     for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
-        if(_mesh->data(*v_it).label == 10){
+        if(_mesh->data(*v_it).label >= 10){
             qDebug() << "vertice trajectoire trouve";
-            _mesh->set_color(*v_it, MyMesh::Color( 50, 200, 50));
+            _mesh->set_color(*v_it, colors.at(_mesh->data(v_it).label - 10));
             _mesh->data(*v_it).thickness = 6;
         }
     }
@@ -438,7 +431,6 @@ QVector3D MainWindow::getCenterOfFace(MyMesh *_mesh, int faceID){
         z += p[2];
     }
 
-
     return QVector3D( x/3, y/3, z/3 );
 }
 
@@ -562,7 +554,7 @@ void MainWindow::on_pushButton_decoupage_clicked(){
 
     //creation de la puzzleState pour futures opérations
     puzzle.HG = 2; puzzle.H = 3; puzzle.HD = 4;
-    puzzle.MG = 9; puzzle.M = 1; puzzle.MD = 5;
+    puzzle.G  = 9; puzzle.M = 1; puzzle.D  = 5;
     puzzle.BG = 8; puzzle.B = 7; puzzle.BD = 6;
     resetTrajectoryChecking();
 
@@ -675,203 +667,17 @@ void MainWindow::on_pushButton_espPlus_clicked(){
     displayMesh(&mesh);
 }
 
-// --------------------------- trajectories and collisions ------------------------
+// ----------------------- labels -----------------------
 
-vector<QVector3D> MainWindow::calcTrajectoryCoordinates(QVector3D M, QVector3D O, string orientation){
-
-    vector<QVector3D> trajectoire;
-
-    if(orientation == "x_axis"){
-        //premiere position
-        trajectoire.push_back(M);
-
-        //puis tout les 30 degres
-        for(int i=1 ; i<=6 ; i++){
-            float xM, yM, x, y;
-
-            float angle = (i*30) * M_PI/180;
-            xM = M.x() - O.x();
-            yM = M.y() - O.y();
-            x = xM * cos(angle) + yM * sin(angle) + O.x();
-            y = - xM * sin(angle) + yM * cos(angle) + O.y();
-            trajectoire.push_back( QVector3D( x, y, M.z() ) );
+void MainWindow::connexCompoFlagging(MyMesh* _mesh, int currentLabel, int currentFace){
+    FaceHandle fh = _mesh->face_handle(currentFace);
+    _mesh->data(fh).label = currentLabel;
+    MyMesh::FaceFaceIter ff_it = _mesh->ff_begin(fh);
+    for(ff_it ; ff_it.is_valid() ; ++ff_it){
+        if(_mesh->data(*ff_it).label == 0){
+            connexCompoFlagging(_mesh, currentLabel, (*ff_it).idx());
         }
     }
-
-    else if(orientation == "z_axis"){
-        //premiere position
-        trajectoire.push_back(M);
-
-        //puis tout les 30 degres
-        for(int i=1 ; i<=6 ; i++){
-            float zM, yM, z, y;
-
-            float angle = (i*30) * M_PI/180;
-            zM = M.z() - O.z();
-            yM = M.y() - O.y();
-            z = zM * cos(angle) + yM * sin(angle) + O.z();
-            y = - zM * sin(angle) + yM * cos(angle) + O.y();
-            trajectoire.push_back( QVector3D( M.x(), y, z ) );
-        }
-    }
-
-    return trajectoire;
-
-}
-
-void MainWindow::resetTrajectoryChecking(){
-    puzzle.checkingH = false;
-    puzzle.checkingG = false;
-    puzzle.checkingD = false;
-    puzzle.checkingB = false;
-}
-
-void MainWindow::addTrajectory(MyMesh *_mesh){
-    //buffer doit être clear !
-    qDebug() << "add trajectory requested";
-    if(puzzle.checkingB){
-        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
-            if(_mesh->data(v_it).label == puzzle.BG || _mesh->data(v_it).label == puzzle.BD){
-                vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
-                                                                    QVector3D(center_X, center_Y, center_Z),
-                                                                    "x_axis");
-                qDebug() << "adding vertex ..";
-                for(int i=0 ; i<(int)traj.size() ; i++){
-                    qDebug() << "vertex added";
-                    VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
-                    trajectoryBuffer.push_back(vh);
-                    _mesh->data(vh).label = 10;
-                }
-            }
-        }
-        qDebug() << "done adding vertexes";
-    }
-}
-
-void MainWindow::removeTrajectory(MyMesh *_mesh){
-    qDebug() << "removeTrajectory requested";
-    _mesh->request_vertex_status();
-    for(int i=0 ; i<(int)trajectoryBuffer.size() ; i++){
-        qDebug() << "vertex deleted";
-        _mesh->delete_vertex(trajectoryBuffer.at(i));
-    }
-    trajectoryBuffer.clear();
-    _mesh->garbage_collection();
-
-}
-
-// ----------------------------- rotations -----------------------------
-
-void MainWindow::on_pushButton_RB_clicked(){
-    cout << "RB clicked" << endl;
-
-    if(!puzzle.checkingB){
-        resetTrajectoryChecking();
-        puzzle.checkingB = true;
-        addTrajectory(&mesh);
-        trajectoryColorationUpdate(&mesh);
-    }
-
-    else if(puzzle.checkingB){
-        removeTrajectory(&mesh);
-        for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
-            VertexHandle vh = mesh.vertex_handle(i);
-            //si on a un vertice labele en bas gauche
-            if( mesh.data(vh).label == puzzle.BG  || mesh.data(vh).label == puzzle.BD ){
-                QVector3D center = QVector3D( center_X, center_Y, mesh.point(vh)[2] );
-                QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
-                QVector3D dist = original - center;
-                QVector3D target = center - dist;
-                mesh.point(vh)[0] = target.x();
-                mesh.point(vh)[1] = target.y();
-                mesh.point(vh)[2] = target.z();
-            }
-        }
-
-        //update puzzle state
-        int temp = puzzle.BD;
-        puzzle.BD = puzzle.BG;
-        puzzle.BG = temp;
-        resetTrajectoryChecking();
-    }
-
-    displayMesh(&mesh);
-}
-
-void MainWindow::on_pushButton_RH_clicked(){
-    cout << "RH clicked" << endl;
-
-    for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
-        VertexHandle vh = mesh.vertex_handle(i);
-        //si on a un vertice labele en bas gauche
-        if( mesh.data(vh).label == puzzle.HG  || mesh.data(vh).label == puzzle.HD ){
-            QVector3D center = QVector3D( center_X, center_Y, mesh.point(vh)[2] );
-            QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
-            QVector3D dist = original - center;
-            QVector3D target = center - dist;
-            mesh.point(vh)[0] = target.x();
-            mesh.point(vh)[1] = target.y();
-            mesh.point(vh)[2] = target.z();
-        }
-    }
-
-    //update puzzle state
-    int temp = puzzle.HD;
-    puzzle.HD = puzzle.HG;
-    puzzle.HG = temp;
-
-    displayMesh(&mesh);
-}
-
-
-void MainWindow::on_pushButton_RD_clicked(){
-    cout << "RD clicked" << endl;
-
-    for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
-        VertexHandle vh = mesh.vertex_handle(i);
-        //si on a un vertice labele en bas gauche
-        if( mesh.data(vh).label == puzzle.HD  || mesh.data(vh).label == puzzle.BD ){
-            QVector3D center = QVector3D( mesh.point(vh)[0], center_Y, center_Z );
-            QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
-            QVector3D dist = original - center;
-            QVector3D target = center - dist;
-            mesh.point(vh)[0] = target.x();
-            mesh.point(vh)[1] = target.y();
-            mesh.point(vh)[2] = target.z();
-        }
-    }
-
-    //update puzzle state
-    int temp = puzzle.BD;
-    puzzle.BD = puzzle.HD;
-    puzzle.HD = temp;
-
-    displayMesh(&mesh);
-}
-
-void MainWindow::on_pushButton_RG_clicked(){
-    cout << "RG clicked" << endl;
-
-    for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
-        VertexHandle vh = mesh.vertex_handle(i);
-        //si on a un vertice labele en bas gauche
-        if( mesh.data(vh).label == puzzle.BG  || mesh.data(vh).label == puzzle.HG ){
-            QVector3D center = QVector3D( mesh.point(vh)[0], center_Y, center_Z );
-            QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
-            QVector3D dist = original - center;
-            QVector3D target = center - dist;
-            mesh.point(vh)[0] = target.x();
-            mesh.point(vh)[1] = target.y();
-            mesh.point(vh)[2] = target.z();
-        }
-    }
-
-    //update puzzle state
-    int temp = puzzle.BG;
-    puzzle.BG = puzzle.HG;
-    puzzle.HG = temp;
-
-    displayMesh(&mesh);
 }
 
 void MainWindow::resetFacesLabels(MyMesh *_mesh){
@@ -965,6 +771,374 @@ void MainWindow::correctLabelisation(MyMesh *_mesh){
 
 
 
+// --------------------------- trajectories and collisions ------------------------
+
+vector<QVector3D> MainWindow::calcTrajectoryCoordinates(QVector3D M, QVector3D O, string orientation){
+
+    vector<QVector3D> trajectoire;
+
+    if(orientation == "x_axis"){
+        //premiere position
+        trajectoire.push_back(M);
+
+        //puis tout les 30 degres
+        for(int i=1 ; i<=6 ; i++){
+            float xM, yM, x, y;
+
+            float angle = (i*30) * M_PI/180;
+            xM = M.x() - O.x();
+            yM = M.y() - O.y();
+            x = xM * cos(angle) + yM * sin(angle) + O.x();
+            y = - xM * sin(angle) + yM * cos(angle) + O.y();
+            trajectoire.push_back( QVector3D( x, y, M.z() ) );
+        }
+    }
+
+    else if(orientation == "z_axis"){
+        //premiere position
+        trajectoire.push_back(M);
+
+        //puis tout les 30 degres
+        for(int i=1 ; i<=6 ; i++){
+            float zM, yM, z, y;
+
+            float angle = (i*30) * M_PI/180;
+            zM = M.z() - O.z();
+            yM = M.y() - O.y();
+            z = zM * cos(angle) + yM * sin(angle) + O.z();
+            y = - zM * sin(angle) + yM * cos(angle) + O.y();
+            trajectoire.push_back( QVector3D( M.x(), y, z ) );
+        }
+    }
+
+    return trajectoire;
+
+}
+
+void MainWindow::resetTrajectoryChecking(){
+    puzzle.checkingH = false;
+    puzzle.checkingG = false;
+    puzzle.checkingD = false;
+    puzzle.checkingB = false;
+}
+
+void MainWindow::addTrajectory(MyMesh *_mesh){
+    //buffer doit être clear !
+    qDebug() << "add trajectory requested";
+    if(puzzle.checkingB){
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
+            if(_mesh->data(v_it).label == puzzle.BG || _mesh->data(v_it).label == puzzle.BD || _mesh->data(v_it).label == puzzle.B){
+                vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
+                                                                    QVector3D(center_X, center_Y, center_Z),
+                                                                    "x_axis");
+                //qDebug() << "adding vertex ..";
+                for(int i=0 ; i<(int)traj.size() ; i++){
+                    //qDebug() << "vertex added";
+                    VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
+                    if(_mesh->data(v_it).label == puzzle.BG) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.B) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.BD) trajectoryBuffer3.push_back(vh);
+
+                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                }
+            }
+        }
+        //qDebug() << "done adding vertexes";
+    }
+
+    if(puzzle.checkingD){
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
+            if(_mesh->data(v_it).label == puzzle.BD || _mesh->data(v_it).label == puzzle.HD || _mesh->data(v_it).label == puzzle.D){
+                vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
+                                                                    QVector3D(center_X, center_Y, center_Z),
+                                                                    "z_axis");
+                //qDebug() << "adding vertex ..";
+                for(int i=0 ; i<(int)traj.size() ; i++){
+                    //qDebug() << "vertex added";
+                    VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
+                    if(_mesh->data(v_it).label == puzzle.BD) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.D) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.HD) trajectoryBuffer3.push_back(vh);
+
+                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                }
+            }
+        }
+        //qDebug() << "done adding vertexes";
+    }
+
+    if(puzzle.checkingH){
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
+            if(_mesh->data(v_it).label == puzzle.HD || _mesh->data(v_it).label == puzzle.HG || _mesh->data(v_it).label == puzzle.H){
+                vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
+                                                                    QVector3D(center_X, center_Y, center_Z),
+                                                                    "x_axis");
+                //qDebug() << "adding vertex ..";
+                for(int i=0 ; i<(int)traj.size() ; i++){
+                    //qDebug() << "vertex added";
+                    VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
+                    if(_mesh->data(v_it).label == puzzle.HG) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.H) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.HD) trajectoryBuffer3.push_back(vh);
+
+                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                }
+            }
+        }
+        //qDebug() << "done adding vertexes";
+    }
+
+    if(puzzle.checkingG){
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
+            if(_mesh->data(v_it).label == puzzle.HG || _mesh->data(v_it).label == puzzle.BG || _mesh->data(v_it).label == puzzle.G){
+                vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
+                                                                    QVector3D(center_X, center_Y, center_Z),
+                                                                    "z_axis");
+                //qDebug() << "adding vertex ..";
+                for(int i=0 ; i<(int)traj.size() ; i++){
+                    //qDebug() << "vertex added";
+                    VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
+                    if(_mesh->data(v_it).label == puzzle.HG) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.G) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(v_it).label == puzzle.BG) trajectoryBuffer3.push_back(vh);
+
+                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                }
+            }
+        }
+        //qDebug() << "done adding vertexes";
+    }
+}
+
+void MainWindow::removeTrajectory(MyMesh *_mesh){
+    qDebug() << "removeTrajectory requested";
+    _mesh->request_vertex_status();
+
+    for(int i=0 ; i<(int)trajectoryBuffer1.size() ; i++){
+        qDebug() << "vertex deleted";
+        _mesh->delete_vertex(trajectoryBuffer1.at(i));
+    }
+
+    for(int i=0 ; i<(int)trajectoryBuffer2.size() ; i++){
+        qDebug() << "vertex deleted";
+        _mesh->delete_vertex(trajectoryBuffer2.at(i));
+    }
+
+    for(int i=0 ; i<(int)trajectoryBuffer3.size() ; i++){
+        qDebug() << "vertex deleted";
+        _mesh->delete_vertex(trajectoryBuffer3.at(i));
+    }
+
+    for(int i=0 ; i<(int)planeTrajectoryBuffer.size() ; i++){
+        qDebug() << "vertex deleted";
+        _mesh->delete_vertex(planeTrajectoryBuffer.at(i));
+    }
+
+    _mesh->garbage_collection();
+
+    trajectoryBuffer1.clear();
+    trajectoryBuffer2.clear();
+    trajectoryBuffer3.clear();
+    planeTrajectoryBuffer.clear();
+
+}
+
+float MainWindow::getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b){
+    float distance = pow( b.x() - a.x(), 2.0 );
+    distance += pow( b.y() - a.y(), 2.0 );
+    distance += pow( b.z() - a.z(), 2.0 );
+    return sqrt(distance);
+}
+
+void MainWindow::displayTrajectoryOnPlane(MyMesh *_mesh){
+
+    if(puzzle.checkingB){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+
+            if(_mesh->data(v_it).label == puzzle.BG){
+                MyMesh::Point Porigine = _mesh->point(v_it);
+                //le z reste inchangé
+                float z = Porigine[2];
+                //le y du point projeté sur le plan va correspondre a la distance
+                //entre le point d'origine et la droite Oz passant par le centre de rotation
+                float y = getDistanceBtw2Vertices( _mesh,
+                                                   QVector3D(Porigine[0], Porigine[1], Porigine[2]),
+                                                   QVector3D( center_X, center_Y, Porigine[2] ));
+                //pour le moment centré
+                float x = center_X;
+            }
+        }
+    }
+
+    if(puzzle.checkingD){
+
+    }
+
+    if(puzzle.checkingH){
+
+    }
+
+    if(puzzle.checkingG){
+
+    }
+}
+
+// ----------------------------- rotations -----------------------------
+
+void MainWindow::on_pushButton_RB_clicked(){
+    cout << "RB clicked" << endl;
+
+    //affichage des trajectoires des pieces
+    if(!puzzle.checkingB){
+        removeTrajectory(&mesh);
+        resetTrajectoryChecking();
+        puzzle.checkingB = true;
+        addTrajectory(&mesh);
+        trajectoryColorationUpdate(&mesh);
+    }
+
+    else if(puzzle.checkingB){
+        removeTrajectory(&mesh);
+        for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
+            VertexHandle vh = mesh.vertex_handle(i);
+            //si on a un vertice labeled en bas gauche ou droite
+            if( mesh.data(vh).label == puzzle.BG  || mesh.data(vh).label == puzzle.BD || mesh.data(vh).label == puzzle.B ){
+                QVector3D center = QVector3D( center_X, center_Y, mesh.point(vh)[2] );
+                QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
+                QVector3D dist = original - center;
+                QVector3D target = center - dist;
+                mesh.point(vh)[0] = target.x();
+                mesh.point(vh)[1] = target.y();
+                mesh.point(vh)[2] = target.z();
+            }
+        }
+
+        //update puzzle state
+        int temp = puzzle.BD;
+        puzzle.BD = puzzle.BG;
+        puzzle.BG = temp;
+        resetTrajectoryChecking();
+    }
+
+    displayMesh(&mesh);
+}
+
+void MainWindow::on_pushButton_RD_clicked(){
+    cout << "RD clicked" << endl;
+
+    //affichage des trajectoires des pieces
+    if(!puzzle.checkingD){
+        removeTrajectory(&mesh);
+        resetTrajectoryChecking();
+        puzzle.checkingD = true;
+        addTrajectory(&mesh);
+        trajectoryColorationUpdate(&mesh);
+    }
+
+    else if(puzzle.checkingD){
+        removeTrajectory(&mesh);
+        for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
+            VertexHandle vh = mesh.vertex_handle(i);
+            //si on a un vertice labele en bas gauche
+            if( mesh.data(vh).label == puzzle.HD  || mesh.data(vh).label == puzzle.BD || mesh.data(vh).label == puzzle.D ){
+                QVector3D center = QVector3D( mesh.point(vh)[0], center_Y, center_Z );
+                QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
+                QVector3D dist = original - center;
+                QVector3D target = center - dist;
+                mesh.point(vh)[0] = target.x();
+                mesh.point(vh)[1] = target.y();
+                mesh.point(vh)[2] = target.z();
+            }
+        }
+
+        //update puzzle state
+        int temp = puzzle.BD;
+        puzzle.BD = puzzle.HD;
+        puzzle.HD = temp;
+        resetTrajectoryChecking();
+    }
+
+    displayMesh(&mesh);
+}
+
+void MainWindow::on_pushButton_RH_clicked(){
+    cout << "RH clicked" << endl;
+
+    //affichage des trajectoires des pieces
+    if(!puzzle.checkingH){
+        removeTrajectory(&mesh);
+        resetTrajectoryChecking();
+        puzzle.checkingH = true;
+        addTrajectory(&mesh);
+        trajectoryColorationUpdate(&mesh);
+    }
+
+    else if(puzzle.checkingH){
+        removeTrajectory(&mesh);
+        for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
+            VertexHandle vh = mesh.vertex_handle(i);
+            //si on a un vertice labele en bas gauche
+            if( mesh.data(vh).label == puzzle.HG  || mesh.data(vh).label == puzzle.HD || mesh.data(vh).label == puzzle.H ){
+                QVector3D center = QVector3D( center_X, center_Y, mesh.point(vh)[2] );
+                QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
+                QVector3D dist = original - center;
+                QVector3D target = center - dist;
+                mesh.point(vh)[0] = target.x();
+                mesh.point(vh)[1] = target.y();
+                mesh.point(vh)[2] = target.z();
+            }
+        }
+
+        //update puzzle state
+        int temp = puzzle.HD;
+        puzzle.HD = puzzle.HG;
+        puzzle.HG = temp;
+        resetTrajectoryChecking();
+    }
+
+    displayMesh(&mesh);
+}
+
+void MainWindow::on_pushButton_RG_clicked(){
+    cout << "RG clicked" << endl;
+
+    //affichage des trajectoires des pieces
+    if(!puzzle.checkingG){
+        removeTrajectory(&mesh);
+        resetTrajectoryChecking();
+        puzzle.checkingG = true;
+        addTrajectory(&mesh);
+        trajectoryColorationUpdate(&mesh);
+    }
+
+    else if(puzzle.checkingG){
+        removeTrajectory(&mesh);
+        for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
+            VertexHandle vh = mesh.vertex_handle(i);
+            //si on a un vertice labele en bas gauche
+            if( mesh.data(vh).label == puzzle.BG  || mesh.data(vh).label == puzzle.HG ){
+                QVector3D center = QVector3D( mesh.point(vh)[0], center_Y, center_Z );
+                QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
+                QVector3D dist = original - center;
+                QVector3D target = center - dist;
+                mesh.point(vh)[0] = target.x();
+                mesh.point(vh)[1] = target.y();
+                mesh.point(vh)[2] = target.z();
+            }
+        }
+
+        //update puzzle state
+        int temp = puzzle.BG;
+        puzzle.BG = puzzle.HG;
+        puzzle.HG = temp;
+        resetTrajectoryChecking();
+    }
+
+    displayMesh(&mesh);
+}
+
+
 
 
 /* **** fin de la partie boutons et IHM **** */
@@ -990,8 +1164,7 @@ void MainWindow::resetAllColorsAndThickness(MyMesh* _mesh){
 }
 
 // charge un objet MyMesh dans l'environnement OpenGL
-void MainWindow::displayMesh(MyMesh* _mesh, DisplayMode mode)
-{
+void MainWindow::displayMesh(MyMesh* _mesh, DisplayMode mode){
     GLuint* triIndiceArray = new GLuint[_mesh->n_faces() * 3];
     GLfloat* triCols = new GLfloat[_mesh->n_faces() * 3 * 3];
     GLfloat* triVerts = new GLfloat[_mesh->n_faces() * 3 * 3];
