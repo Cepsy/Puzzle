@@ -88,10 +88,11 @@ public:
     //labelisation & coloration
     QVector3D getCenterOfFace(MyMesh *_mesh, int faceID);
     void connexCompoFlagging(MyMesh *_mesh, int currentLabel, int currentFace);
-    void piecesColoration(MyMesh *_mesh);
+    void piecesFlaggingAndColoration(MyMesh *_mesh);
     void resetFacesLabels(MyMesh *_mesh);
     void resetVertexLabels(MyMesh *_mesh);
     void correctLabelisation(MyMesh *_mesh);
+    void registerFacesAndVertices(MyMesh *_mesh);
 
     //trajectories calculations
     vector<QVector3D> calcTrajectoryCoordinates(QVector3D M, QVector3D O, string orientation);
@@ -103,6 +104,7 @@ public:
     //collisions checking
     float getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b);
     void displayTrajectoryOnPlane(MyMesh *_mesh); //or not
+    bool pointIsInTriangle(MyMesh *_mesh, QVector3D p, FaceHandle fh);
     void checkingTrajectoryCollisions(MyMesh *_mesh);
 
     //squellette
@@ -139,6 +141,10 @@ private:
     CoorPieces corps;
 
     PuzzleState puzzle;
+
+    vector<vector<VertexHandle>> piecesVertices;
+    vector<vector<FaceHandle>> piecesFaces;
+
     vector<VertexHandle> trajectoryBuffer1;
     vector<VertexHandle> trajectoryBuffer2;
     vector<VertexHandle> trajectoryBuffer3;

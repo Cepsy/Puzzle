@@ -120,7 +120,7 @@ void MainWindow::on_pushButton_beginSelection_clicked(){
 
     displayObjectsValues();
 
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
     cout << "done" << endl;
 }
 
@@ -143,42 +143,42 @@ void MainWindow::on_pushButton_LMoins_clicked(){
     corps.L -= PAS; corps.zBD -= PAS; corps.zBG -= PAS; corps.xHD -= PAS; corps.xBD -= PAS;
     p_bas.coor -= PAS; p_droite.coor -= PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_LPlus_clicked(){
     corps.L += PAS; corps.zBD += PAS; corps.zBG += PAS; corps.xHD += PAS; corps.xBD += PAS;
     p_bas.coor += PAS; p_droite.coor += PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_xMoins_clicked(){
     corps.xBD -= PAS; corps.xBG -= PAS; corps.xHD -= PAS; corps.xHG -= PAS;
     p_droite.coor -= PAS; p_gauche.coor -= PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_xPlus_clicked(){
     corps.xBD += PAS; corps.xBG += PAS; corps.xHD += PAS; corps.xHG += PAS;
     p_droite.coor += PAS; p_gauche.coor += PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_zMoins_clicked(){
     corps.zBD -= PAS; corps.zBG -= PAS; corps.zHD -= PAS; corps.zHG -= PAS;
     p_bas.coor -= PAS; p_haut.coor -= PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_zPlus_clicked(){
     corps.zBG += PAS; corps.zBD += PAS; corps.zHD += PAS; corps.zHG += PAS;
     p_bas.coor += PAS; p_haut.coor += PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_yMinMoins_clicked(){
@@ -188,7 +188,7 @@ void MainWindow::on_pushButton_yMinMoins_clicked(){
     if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.minY-=PAS;
     if(ui->comboBox_plans->currentText() == "Haut") p_haut.minY-=PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_yMinPlus_clicked(){
@@ -198,7 +198,7 @@ void MainWindow::on_pushButton_yMinPlus_clicked(){
     if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.minY+=PAS;
     if(ui->comboBox_plans->currentText() == "Haut") p_haut.minY+=PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_yMaxMoins_clicked(){
@@ -208,7 +208,7 @@ void MainWindow::on_pushButton_yMaxMoins_clicked(){
     if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.maxY-=PAS;
     if(ui->comboBox_plans->currentText() == "Haut") p_haut.maxY-=PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_yMaxPlus_clicked(){
@@ -218,15 +218,64 @@ void MainWindow::on_pushButton_yMaxPlus_clicked(){
     if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.maxY+=PAS;
     if(ui->comboBox_plans->currentText() == "Haut") p_haut.maxY+=PAS;
     displayObjectsValues();
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 }
 
 // ------------------------------------ flaggings & colorations ------------------------
 
+void MainWindow::registerFacesAndVertices(MyMesh *_mesh){
 
+    vector<VertexHandle> v1, v2, v3, v4, v5, v6, v7, v8, v9;
 
+    for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+        if(_mesh->data(*v_it).label == 1) v1.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 2) v2.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 3) v3.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 4) v4.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 5) v5.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 6) v6.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 7) v7.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 8) v8.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 9) v9.push_back(*v_it);
+    }
 
-void MainWindow::piecesColoration(MyMesh *_mesh){
+    piecesVertices.push_back(v1);
+    piecesVertices.push_back(v2);
+    piecesVertices.push_back(v3);
+    piecesVertices.push_back(v4);
+    piecesVertices.push_back(v5);
+    piecesVertices.push_back(v6);
+    piecesVertices.push_back(v7);
+    piecesVertices.push_back(v8);
+    piecesVertices.push_back(v9);
+
+    vector<FaceHandle> f1, f2, f3, f4, f5, f6, f7, f8, f9;
+
+    for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end() ; ++f_it){
+        if(_mesh->data(*f_it).label == 1) f1.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 2) f2.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 3) f3.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 4) f4.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 5) f5.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 6) f6.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 7) f7.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 8) f8.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 9) f9.push_back(*f_it);
+    }
+
+    piecesFaces.push_back(f1);
+    piecesFaces.push_back(f2);
+    piecesFaces.push_back(f3);
+    piecesFaces.push_back(f4);
+    piecesFaces.push_back(f5);
+    piecesFaces.push_back(f6);
+    piecesFaces.push_back(f7);
+    piecesFaces.push_back(f8);
+    piecesFaces.push_back(f9);
+
+}
+
+void MainWindow::piecesFlaggingAndColoration(MyMesh *_mesh){
     resetAllColorsAndThickness(_mesh);
     faceLabeling.clear();
     for(int i=0 ; i<(int)_mesh->n_faces() ; i++) faceLabeling.push_back(-1);
@@ -279,13 +328,14 @@ void MainWindow::piecesColoration(MyMesh *_mesh){
     else{
         //flagging
         correctLabelisation(_mesh);
+        //enregistrement dans les tableaux
+        registerFacesAndVertices(_mesh);
         //coloration
         for(auto f_it = _mesh->faces_begin(); f_it != _mesh->faces_end(); f_it++){
             if(_mesh->data(*f_it).label == 0) _mesh->set_color(*f_it, MyMesh::Color( 150, 150, 150));
             else _mesh->set_color(*f_it, colors.at(_mesh->data(*f_it).label));
         }
      }
-
 
     //for(int i=0 ; i<(int)faceLabeling.size() ; i++) cout << faceLabeling.at(i) << " ";
     //cout << endl;
@@ -304,10 +354,14 @@ void MainWindow::trajectoryColorationUpdate(MyMesh *_mesh){
 
     //trajectory vertices
     for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
-        if(_mesh->data(*v_it).label >= 10){
+        if(_mesh->data(*v_it).label >= 10 && _mesh->data(*v_it).label != 20){
             qDebug() << "vertice trajectoire trouve";
-            _mesh->set_color(*v_it, colors.at(_mesh->data(v_it).label - 10));
+            _mesh->set_color(*v_it, colors.at(_mesh->data(*v_it).label - 10));
             _mesh->data(*v_it).thickness = 6;
+        }
+        if(_mesh->data(*v_it).label == 20){
+            _mesh->set_color(*v_it, MyMesh::Color(225, 50, 50));
+            _mesh->data(*v_it).thickness = 12;
         }
     }
 
@@ -558,12 +612,13 @@ void MainWindow::on_pushButton_decoupage_clicked(){
     puzzle.BG = 8; puzzle.B = 7; puzzle.BD = 6;
     resetTrajectoryChecking();
 
+
     //delete all elements marked as deleted
     mesh.garbage_collection();
     cout << "done" << endl;
     isCut = true;
     resetAllColorsAndThickness(&mesh);
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
     displayMesh(&mesh);
 }
 
@@ -614,7 +669,7 @@ void MainWindow::on_pushButton_espMoins_clicked(){
         }
     }
 
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
     displayMesh(&mesh);
 }
 
@@ -663,7 +718,7 @@ void MainWindow::on_pushButton_espPlus_clicked(){
     }
 
 
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
     displayMesh(&mesh);
 }
 
@@ -827,7 +882,7 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
     qDebug() << "add trajectory requested";
     if(puzzle.checkingB){
         for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
-            if(_mesh->data(v_it).label == puzzle.BG || _mesh->data(v_it).label == puzzle.BD || _mesh->data(v_it).label == puzzle.B){
+            if(_mesh->data(*v_it).label == puzzle.BG || _mesh->data(*v_it).label == puzzle.BD || _mesh->data(*v_it).label == puzzle.B){
                 vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
                                                                     QVector3D(center_X, center_Y, center_Z),
                                                                     "x_axis");
@@ -835,11 +890,11 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
                 for(int i=0 ; i<(int)traj.size() ; i++){
                     //qDebug() << "vertex added";
                     VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
-                    if(_mesh->data(v_it).label == puzzle.BG) trajectoryBuffer1.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.B) trajectoryBuffer2.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.BD) trajectoryBuffer3.push_back(vh);
+                    if(_mesh->data(*v_it).label == puzzle.BG) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.B) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.BD) trajectoryBuffer3.push_back(vh);
 
-                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                    _mesh->data(vh).label = _mesh->data(*v_it).label + 10; //ref in header
                 }
             }
         }
@@ -848,7 +903,7 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
 
     if(puzzle.checkingD){
         for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
-            if(_mesh->data(v_it).label == puzzle.BD || _mesh->data(v_it).label == puzzle.HD || _mesh->data(v_it).label == puzzle.D){
+            if(_mesh->data(*v_it).label == puzzle.BD || _mesh->data(*v_it).label == puzzle.HD || _mesh->data(*v_it).label == puzzle.D){
                 vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
                                                                     QVector3D(center_X, center_Y, center_Z),
                                                                     "z_axis");
@@ -856,11 +911,11 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
                 for(int i=0 ; i<(int)traj.size() ; i++){
                     //qDebug() << "vertex added";
                     VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
-                    if(_mesh->data(v_it).label == puzzle.BD) trajectoryBuffer1.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.D) trajectoryBuffer2.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.HD) trajectoryBuffer3.push_back(vh);
+                    if(_mesh->data(*v_it).label == puzzle.BD) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.D) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.HD) trajectoryBuffer3.push_back(vh);
 
-                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                    _mesh->data(vh).label = _mesh->data(*v_it).label + 10; //ref in header
                 }
             }
         }
@@ -869,7 +924,7 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
 
     if(puzzle.checkingH){
         for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
-            if(_mesh->data(v_it).label == puzzle.HD || _mesh->data(v_it).label == puzzle.HG || _mesh->data(v_it).label == puzzle.H){
+            if(_mesh->data(*v_it).label == puzzle.HD || _mesh->data(*v_it).label == puzzle.HG || _mesh->data(*v_it).label == puzzle.H){
                 vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
                                                                     QVector3D(center_X, center_Y, center_Z),
                                                                     "x_axis");
@@ -877,11 +932,11 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
                 for(int i=0 ; i<(int)traj.size() ; i++){
                     //qDebug() << "vertex added";
                     VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
-                    if(_mesh->data(v_it).label == puzzle.HG) trajectoryBuffer1.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.H) trajectoryBuffer2.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.HD) trajectoryBuffer3.push_back(vh);
+                    if(_mesh->data(*v_it).label == puzzle.HG) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.H) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.HD) trajectoryBuffer3.push_back(vh);
 
-                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                    _mesh->data(vh).label = _mesh->data(*v_it).label + 10; //ref in header
                 }
             }
         }
@@ -890,7 +945,7 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
 
     if(puzzle.checkingG){
         for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; v_it++ ){
-            if(_mesh->data(v_it).label == puzzle.HG || _mesh->data(v_it).label == puzzle.BG || _mesh->data(v_it).label == puzzle.G){
+            if(_mesh->data(*v_it).label == puzzle.HG || _mesh->data(*v_it).label == puzzle.BG || _mesh->data(*v_it).label == puzzle.G){
                 vector<QVector3D> traj = calcTrajectoryCoordinates( QVector3D( _mesh->point(v_it)[0], _mesh->point(v_it)[1], _mesh->point(v_it)[2] ),
                                                                     QVector3D(center_X, center_Y, center_Z),
                                                                     "z_axis");
@@ -898,11 +953,11 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
                 for(int i=0 ; i<(int)traj.size() ; i++){
                     //qDebug() << "vertex added";
                     VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
-                    if(_mesh->data(v_it).label == puzzle.HG) trajectoryBuffer1.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.G) trajectoryBuffer2.push_back(vh);
-                    else if(_mesh->data(v_it).label == puzzle.BG) trajectoryBuffer3.push_back(vh);
+                    if(_mesh->data(*v_it).label == puzzle.HG) trajectoryBuffer1.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.G) trajectoryBuffer2.push_back(vh);
+                    else if(_mesh->data(*v_it).label == puzzle.BG) trajectoryBuffer3.push_back(vh);
 
-                    _mesh->data(vh).label = _mesh->data(v_it).label + 10; //ref in header
+                    _mesh->data(vh).label = _mesh->data(*v_it).label + 10; //ref in header
                 }
             }
         }
@@ -929,19 +984,15 @@ void MainWindow::removeTrajectory(MyMesh *_mesh){
         _mesh->delete_vertex(trajectoryBuffer3.at(i));
     }
 
-    for(int i=0 ; i<(int)planeTrajectoryBuffer.size() ; i++){
-        qDebug() << "vertex deleted";
-        _mesh->delete_vertex(planeTrajectoryBuffer.at(i));
-    }
-
     _mesh->garbage_collection();
 
     trajectoryBuffer1.clear();
     trajectoryBuffer2.clear();
     trajectoryBuffer3.clear();
-    planeTrajectoryBuffer.clear();
 
 }
+
+// -- collisions
 
 float MainWindow::getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b){
     float distance = pow( b.x() - a.x(), 2.0 );
@@ -950,13 +1001,13 @@ float MainWindow::getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D 
     return sqrt(distance);
 }
 
-void MainWindow::displayTrajectoryOnPlane(MyMesh *_mesh){
+/*void MainWindow::displayTrajectoryOnPlane(MyMesh *_mesh){
 
     if(puzzle.checkingB){
 
         for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
 
-            if(_mesh->data(v_it).label == puzzle.BG){
+            if(_mesh->data(*v_it).label == puzzle.BG){
                 MyMesh::Point Porigine = _mesh->point(v_it);
                 //le z reste inchangé
                 float z = Porigine[2];
@@ -982,6 +1033,325 @@ void MainWindow::displayTrajectoryOnPlane(MyMesh *_mesh){
     if(puzzle.checkingG){
 
     }
+}*/
+
+float sign(QVector3D p1, QVector3D p2, QVector3D p3, string axis){
+    if(axis == "z_axis") return (p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.x() - p3.y());
+    else if (axis == "x_axis") return (p1.z() - p3.z()) * (p2.y() - p3.y()) - (p2.z() - p3.z()) * (p1.z() - p3.y());
+}
+
+bool MainWindow::pointIsInTriangle(MyMesh *_mesh, QVector3D p, FaceHandle fh){
+    float d1, d2, d3;
+    bool has_neg, has_pos;
+
+    MyMesh::FaceVertexIter fv_it = _mesh->fv_iter(fh);
+    MyMesh::Point a = _mesh->point(fv_it); fv_it++;
+    MyMesh::Point b = _mesh->point(fv_it); fv_it++;
+    MyMesh::Point c = _mesh->point(fv_it);
+
+    if(puzzle.checkingD || puzzle.checkingG){
+        d1 = sign( p,
+                   QVector3D( a[0], a[1], a[2] ),
+                   QVector3D( b[0], b[1], b[2] ),
+                   "z_axis");
+        d2 = sign( p,
+                   QVector3D( b[0], b[1], b[2] ),
+                   QVector3D( c[0], c[1], c[2] ),
+                   "z_axis");
+        d3 = sign( p,
+                   QVector3D( c[0], c[1], c[2] ),
+                   QVector3D( a[0], a[1], a[2] ),
+                   "z_axis");
+    }
+
+    if(puzzle.checkingH || puzzle.checkingB){
+        d1 = sign( p,
+                   QVector3D( a[0], a[1], a[2] ),
+                   QVector3D( b[0], b[1], b[2] ),
+                   "x_axis");
+        d2 = sign( p,
+                   QVector3D( b[0], b[1], b[2] ),
+                   QVector3D( c[0], c[1], c[2] ),
+                   "x_axis");
+        d3 = sign( p,
+                   QVector3D( c[0], c[1], c[2] ),
+                   QVector3D( a[0], a[1], a[2] ),
+                   "x_axis");
+    }
+
+    has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+    return !(has_neg && has_pos);
+}
+
+void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
+
+    if(puzzle.checkingB){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.BG+10 || _mesh->data(*v_it).label == puzzle.B+10 || _mesh->data(*v_it).label == puzzle.BD+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.G ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.G ).at(i).idx());
+
+                    if(c.z() > P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.G ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.z() > P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.D ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.D ).at(i).idx());
+
+                    if(c.z() > P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.D ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if(puzzle.checkingD){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.BD+10 || _mesh->data(*v_it).label == puzzle.D+10 || _mesh->data(*v_it).label == puzzle.HD+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.B ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.B ).at(i).idx());
+
+                    if(c.x() > P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.B ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.x() > P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.H ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.H ).at(i).idx());
+
+                    if(c.x() > P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.H ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    if(puzzle.checkingH){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.HG+10 || _mesh->data(*v_it).label == puzzle.H+10 || _mesh->data(*v_it).label == puzzle.HD+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.G ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.G ).at(i).idx());
+
+                    if(c.z() < P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.G ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.z() < P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.D ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.D ).at(i).idx());
+
+                    if(c.z() < P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.D ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if(puzzle.checkingG){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.HG+10 || _mesh->data(*v_it).label == puzzle.G+10 || _mesh->data(*v_it).label == puzzle.BG+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.B ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.B ).at(i).idx());
+
+                    if(c.x() < P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.B ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.x() < P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.H ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.H ).at(i).idx());
+
+                    if(c.x() < P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.H ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 // ----------------------------- rotations -----------------------------
@@ -995,6 +1365,9 @@ void MainWindow::on_pushButton_RB_clicked(){
         resetTrajectoryChecking();
         puzzle.checkingB = true;
         addTrajectory(&mesh);
+        if(ui->checkBox_collisionsCheck->isChecked())
+            checkingTrajectoryCollisions(&mesh);
+
         trajectoryColorationUpdate(&mesh);
     }
 
@@ -1033,6 +1406,8 @@ void MainWindow::on_pushButton_RD_clicked(){
         resetTrajectoryChecking();
         puzzle.checkingD = true;
         addTrajectory(&mesh);
+        if(ui->checkBox_collisionsCheck->isChecked())
+            checkingTrajectoryCollisions(&mesh);
         trajectoryColorationUpdate(&mesh);
     }
 
@@ -1071,6 +1446,8 @@ void MainWindow::on_pushButton_RH_clicked(){
         resetTrajectoryChecking();
         puzzle.checkingH = true;
         addTrajectory(&mesh);
+        if(ui->checkBox_collisionsCheck->isChecked())
+            checkingTrajectoryCollisions(&mesh);
         trajectoryColorationUpdate(&mesh);
     }
 
@@ -1109,6 +1486,8 @@ void MainWindow::on_pushButton_RG_clicked(){
         resetTrajectoryChecking();
         puzzle.checkingG = true;
         addTrajectory(&mesh);
+        if(ui->checkBox_collisionsCheck->isChecked())
+            checkingTrajectoryCollisions(&mesh);
         trajectoryColorationUpdate(&mesh);
     }
 
@@ -1639,7 +2018,7 @@ void MainWindow::on_pushButton_split_decoupe_clicked(){
 
 
     isCut = true;
-    piecesColoration(&mesh);
+    piecesFlaggingAndColoration(&mesh);
 
     displayMesh(&mesh);
 }
