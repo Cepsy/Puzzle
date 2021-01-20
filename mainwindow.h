@@ -104,8 +104,13 @@ public:
     //collisions checking
     float getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b);
     void displayTrajectoryOnPlane(MyMesh *_mesh); //or not
-    bool pointIsInTriangle(MyMesh *_mesh, QVector3D p, FaceHandle fh);
+    bool pointIsInTrianglev1(MyMesh *_mesh, QVector3D p, FaceHandle fh);
+    bool pointIsInTrianglev2(MyMesh *_mesh, QVector3D p, FaceHandle fh);
     void checkingTrajectoryCollisions(MyMesh *_mesh);
+
+    //prototype reduction
+    QVector3D getPieceCenter(MyMesh *_mesh, int piece_label);
+    void reducePiece(MyMesh *_mesh, int piece_label);
 
     //squellette
     void displayMesh(MyMesh *_mesh, DisplayMode mode = DisplayMode::Normal);
@@ -132,6 +137,7 @@ private slots:
     void on_pushButton_RB_clicked();
     void on_pushButton_RG_clicked();
     void on_pushButton_RD_clicked();
+    void on_pushButton_reduction_clicked();
 
 
 private:

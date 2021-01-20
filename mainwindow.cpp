@@ -19,11 +19,22 @@ void MainWindow::on_pushButton_chargement_clicked(){
     displayMesh(&mesh);
 
     //init du combobox
+    ui->comboBox_plans->clear();
     ui->comboBox_plans->addItem("Corps");
     ui->comboBox_plans->addItem("Droite");
     ui->comboBox_plans->addItem("Bas");
     ui->comboBox_plans->addItem("Gauche");
     ui->comboBox_plans->addItem("Haut");
+
+    ui->comboBox_pieces->clear();
+    ui->comboBox_pieces->addItem("HG");
+    ui->comboBox_pieces->addItem("H");
+    ui->comboBox_pieces->addItem("HD");
+    ui->comboBox_pieces->addItem("D");
+    ui->comboBox_pieces->addItem("BD");
+    ui->comboBox_pieces->addItem("B");
+    ui->comboBox_pieces->addItem("BG");
+    ui->comboBox_pieces->addItem("G");
 
 }
 
@@ -38,7 +49,7 @@ void MainWindow::on_pushButton_beginSelection_clicked(){
 
     srand(time(NULL));
     colors.clear();
-    for(int i=0 ; i<20 ; i++) colors.push_back(MyMesh::Color(rand() % 255, rand() % 255, rand() % 255));
+    for(int i=0 ; i<20 ; i++) colors.push_back(MyMesh::Color(rand() % 150, rand() % 255, rand() % 255));
 
     isCut = false;
 
@@ -355,7 +366,7 @@ void MainWindow::trajectoryColorationUpdate(MyMesh *_mesh){
     //trajectory vertices
     for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
         if(_mesh->data(*v_it).label >= 10 && _mesh->data(*v_it).label != 20){
-            qDebug() << "vertice trajectoire trouve";
+            //qDebug() << "vertice trajectoire trouve";
             _mesh->set_color(*v_it, colors.at(_mesh->data(*v_it).label - 10));
             _mesh->data(*v_it).thickness = 6;
         }
@@ -501,7 +512,17 @@ bool edge_intersects(MyMesh *_mesh, const MyMesh::EdgeHandle &eh, QVector3D &p, 
     QVector3D pa = a-p;
     QVector3D pb = b-p;
 
-    return( (QVector3D::dotProduct(pa, n) * QVector3D::dotProduct(pb, n)) < -0.00000001);
+    return( (QVector3D::dotProduct(pa, n) * QVector3D::dotProduct(pb, n)) <= 0);
+}
+
+bool point_is_on_plane(MyMesh *_mesh, const MyMesh::VertexHandle &vh, QVector3D &p, QVector3D &n){
+
+    QVector3D a = QVector3D(_mesh->point(vh)[0], _mesh->point(vh)[1], _mesh->point(vh)[2]);
+    QVector3D pa = a-p;
+
+    double dot = QVector3D::dotProduct(pa, n);
+
+    return (dot == 0);
 }
 
 void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
@@ -512,7 +533,13 @@ void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
 
     n.normalize();
     std::vector<MyMesh::VertexHandle> added_vertices;
+    int n_edges = _mesh->n_edges();
+    int curedge = 0;
     for(auto e_it = _mesh->edges_begin(); e_it != _mesh->edges_end(); e_it++){
+
+        if(++curedge >= n_edges)
+            break;
+
         HalfedgeHandle ah = _mesh->halfedge_handle(e_it, 0);
         VertexHandle v1 = _mesh->from_vertex_handle(ah);
         VertexHandle v2 = _mesh->to_vertex_handle(ah);
@@ -520,12 +547,25 @@ void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
         MyMesh::Point p2 = _mesh->point(v2);
 
 
-        if( (p1[1] < plan.maxY && p1[1] > plan.minY) &&
-            (p2[1] < plan.maxY && p2[1] > plan.minY)){
+        if( (p1[1] <= plan.maxY && p1[1] >= plan.minY) &&
+            (p2[1] <= plan.maxY && p2[1] >= plan.minY)){
             if(edge_intersects(_mesh, *e_it, p, n)){
-                qDebug() << "Edge intersection spotted";
-                QVector3D nv = edge_plan_intersection(_mesh, *e_it, p, n);
-                added_vertices.push_back(_mesh->split_copy(*e_it, MyMesh::Point(nv.x(), nv.y(), nv.z())));
+                //qDebug() << "Edge intersection spotted";
+                bool a_vertex_is_on_p = false;
+                if(point_is_on_plane(_mesh, v1, p, n)){
+                    added_vertices.push_back(v1);
+                    a_vertex_is_on_p = true;
+                }
+/*
+                if(point_is_on_plane(_mesh, v2, p, n)){
+                    added_vertices.push_back(v2);
+                    a_vertex_is_on_p = true;
+                }
+*/
+                if(!a_vertex_is_on_p){
+                    QVector3D nv = edge_plan_intersection(_mesh, *e_it, p, n);
+                    added_vertices.push_back(_mesh->split_copy(*e_it, MyMesh::Point(nv.x(), nv.y(), nv.z())));
+                }
             }
         }
     }
@@ -540,10 +580,10 @@ void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
         for(auto vf_it = _mesh->vf_begin(vert) ; vf_it.is_valid(); vf_it++){
             for(auto fv_it = _mesh->fv_begin(*vf_it); fv_it.is_valid(); fv_it++){
             QVector3D vert_as_vect = QVector3D(_mesh->point(*fv_it)[0], _mesh->point(*fv_it)[1], _mesh->point(*fv_it)[2]);
-                if(QVector3D::dotProduct((vert_as_vect-p), n) > 0.0001){
+                if(QVector3D::dotProduct((vert_as_vect-p).normalized(), n) > 0.000001){
                     faces.push_back(*vf_it);
                     break;
-                }else if(QVector3D::dotProduct((vert_as_vect-p), n) < -0.0001){
+                }else if(QVector3D::dotProduct((vert_as_vect-p).normalized(), n) < -0.000001){
                     break;
                 }
             }
@@ -970,17 +1010,17 @@ void MainWindow::removeTrajectory(MyMesh *_mesh){
     _mesh->request_vertex_status();
 
     for(int i=0 ; i<(int)trajectoryBuffer1.size() ; i++){
-        qDebug() << "vertex deleted";
+        //qDebug() << "vertex deleted";
         _mesh->delete_vertex(trajectoryBuffer1.at(i));
     }
 
     for(int i=0 ; i<(int)trajectoryBuffer2.size() ; i++){
-        qDebug() << "vertex deleted";
+        //qDebug() << "vertex deleted";
         _mesh->delete_vertex(trajectoryBuffer2.at(i));
     }
 
     for(int i=0 ; i<(int)trajectoryBuffer3.size() ; i++){
-        qDebug() << "vertex deleted";
+        //qDebug() << "vertex deleted";
         _mesh->delete_vertex(trajectoryBuffer3.at(i));
     }
 
@@ -1040,7 +1080,7 @@ float sign(QVector3D p1, QVector3D p2, QVector3D p3, string axis){
     else if (axis == "x_axis") return (p1.z() - p3.z()) * (p2.y() - p3.y()) - (p2.z() - p3.z()) * (p1.z() - p3.y());
 }
 
-bool MainWindow::pointIsInTriangle(MyMesh *_mesh, QVector3D p, FaceHandle fh){
+bool MainWindow::pointIsInTrianglev1(MyMesh *_mesh, QVector3D p, FaceHandle fh){
     float d1, d2, d3;
     bool has_neg, has_pos;
 
@@ -1085,6 +1125,63 @@ bool MainWindow::pointIsInTriangle(MyMesh *_mesh, QVector3D p, FaceHandle fh){
     return !(has_neg && has_pos);
 }
 
+float area(float x1, float y1, float x2, float y2, float x3, float y3) {
+   return abs( ( x1 * (y2-y3) + x2 * (y3-y1) + x3 * (y1-y2) )/2.0 );
+}
+
+bool MainWindow::pointIsInTrianglev2(MyMesh *_mesh, QVector3D p, FaceHandle fh){
+
+    //puisqu'on est déjà dans la situation ou le triangle est plus éloigné du corps
+    //que le point courant, il nous suffit de tracer une demi droite allant vers l'exterieur
+    //du puzzle a partir du point et vérifier si il y a intersection avec la face
+
+    //on transforme le probleme 3D en un probleme 2D
+    //il suffit en réalité d'oublier une dimension et vérifier si le point se trouve
+    //dans le triangle
+
+    //si le point est dans le triangle, alors l'aire du triangle ABC est égal à
+    //PAB + PBC + PAC
+
+
+    MyMesh::FaceVertexIter fv_it = _mesh->fv_iter(fh);
+    MyMesh::Point a = _mesh->point(fv_it);
+    MyMesh::Point b = _mesh->point(++fv_it);
+    MyMesh::Point c = _mesh->point(++fv_it);
+
+    float ABC, PAB, PBC, PAC;
+
+    //selon l'orientation de notre probleme, la coordonnée à oublier de façon a passer de la 3D a la 2D
+    //va être différente!
+
+    //pour le bas et le haut, on travaille sur l'axe z, donc on ne prends en compte que l'axe x et y
+    if(puzzle.checkingB || puzzle.checkingH){
+        //qDebug() << "H ou B";
+
+        //qDebug() << "a " << a[0] << " "<< a[1];
+        //qDebug() << "b " << b[0] << " "<< b[1];
+        //qDebug() << "c " << c[0] << " "<< c[1];
+        //qDebug() << "p " << p.x() << " " << p.y();
+
+        ABC = area(  a[0],  a[1],  b[0],  b[1],  c[0],  c[1]);
+        PBC = area( p.x(), p.y(),  b[0],  b[1],  c[0],  c[1]);
+        PAC = area(  a[0],  a[1], p.x(), p.y(),  c[0],  c[1]);
+        PAB = area(  a[0],  a[1],  b[0],  b[1], p.x(), p.y());
+        //qDebug() << "ABC " << ABC << " PBC " << PBC << " PAC " << PAC << " PAB " << PAB;
+    }
+
+    //pour la droite et la gauche, on travaille sur l'axe x, donc on ne prends en compte que l'axe z et y
+    if(puzzle.checkingD || puzzle.checkingG){
+        qDebug() << "D ou G";
+        ABC = area(  a[2],  a[1],  b[2],  b[1],  c[2],  c[1]);
+        PBC = area( p.z(), p.y(),  b[2],  b[1],  c[2],  c[1]);
+        PAC = area(  a[2],  a[1], p.z(), p.y(),  c[2],  c[1]);
+        PAB = area(  a[2],  a[1],  b[2],  b[1], p.z(), p.y());
+    }
+
+
+    return (ABC == PBC + PAC + PAB);
+}
+
 void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
 
     if(puzzle.checkingB){
@@ -1096,128 +1193,24 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
 
                 //on check chacune des faces des 3 pieces directement liées
 
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.G ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.G ).at(i).idx());
+                for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end(); ++f_it){
+                    if( _mesh->data(*f_it).label == puzzle.G || _mesh->data(*f_it).label == puzzle.M || _mesh->data(*f_it).label == puzzle.D ){
+                        QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
 
-                    if(c.z() > P[2]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.G ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
+                        if(c.z() > P[2]) {
+                            qDebug() << "face intersection possible";
+                            if( pointIsInTrianglev2(_mesh,
+                                                    QVector3D( P[0], P[1], P[2] ),
+                                                    *f_it) ){
+                                _mesh->data(*v_it).label = 20;
+                                break;
+                            }
                         }
-                    }
-                }
 
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
-
-                    if(c.z() > P[2]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.M ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.D ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.D ).at(i).idx());
-
-                    if(c.z() > P[2]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.D ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
                     }
                 }
             }
         }
-    }
-
-    if(puzzle.checkingD){
-
-        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
-            //pour chacun des points de la trajectoire des 3 pieces en rotation
-            if( _mesh->data(*v_it).label == puzzle.BD+10 || _mesh->data(*v_it).label == puzzle.D+10 || _mesh->data(*v_it).label == puzzle.HD+10 ){
-                MyMesh::Point P = _mesh->point(v_it);
-
-                //on check chacune des faces des 3 pieces directement liées
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.B ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.B ).at(i).idx());
-
-                    if(c.x() > P[0]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.B ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
-
-                    if(c.x() > P[0]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.M ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.H ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.H ).at(i).idx());
-
-                    if(c.x() > P[0]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.H ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-            }
-        }
-
     }
 
     if(puzzle.checkingH){
@@ -1229,56 +1222,18 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
 
                 //on check chacune des faces des 3 pieces directement liées
 
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.G ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.G ).at(i).idx());
+                for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end(); ++f_it){
+                    if( _mesh->data(*f_it).label == puzzle.G || _mesh->data(*f_it).label == puzzle.M || _mesh->data(*f_it).label == puzzle.D ){
+                        QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
 
-                    if(c.z() < P[2]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.G ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
-
-                    if(c.z() < P[2]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.M ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.D ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.D ).at(i).idx());
-
-                    if(c.z() < P[2]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.D ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
+                        if(c.z() < P[2]) {
+                            qDebug() << "face intersection possible";
+                            if( pointIsInTrianglev2(_mesh,
+                                                    QVector3D( P[0], P[1], P[2] ),
+                                                    *f_it) ){
+                                _mesh->data(*v_it).label = 20;
+                                break;
+                            }
                         }
                     }
                 }
@@ -1295,62 +1250,123 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
 
                 //on check chacune des faces des 3 pieces directement liées
 
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.B ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.B ).at(i).idx());
+                for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end(); ++f_it){
+                    if( _mesh->data(*f_it).label == puzzle.H || _mesh->data(*f_it).label == puzzle.M || _mesh->data(*f_it).label == puzzle.B ){
+                        QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
 
-                    if(c.x() < P[0]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.B ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
-
-                    if(c.x() < P[0]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.M ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
-                        }
-                    }
-                }
-
-                for(int i=0 ; i<(int)piecesFaces.at( puzzle.H ).size() ; i++){
-                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
-                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
-                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.H ).at(i).idx());
-
-                    if(c.x() < P[0]){
-                        //il y a possibilité d'être à l'interieur d'une piece
-                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
-                        //le vertice courant est bel et bien a l'intérieur d'une piece
-                        if( pointIsInTriangle(_mesh,
-                                              QVector3D( P[0], P[1], P[2] ),
-                                              piecesFaces.at( puzzle.H ).at(i)) ){
-                            _mesh->data(*v_it).label = 20;
-                            break; //une seule intersection suffit, on peut passer au point suivant
+                        if(c.x() < P[0]) {
+                            qDebug() << "face intersection possible";
+                            if( pointIsInTrianglev2(_mesh,
+                                                    QVector3D( P[0], P[1], P[2] ),
+                                                    *f_it) ){
+                                _mesh->data(*v_it).label = 20;
+                                break;
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    if(puzzle.checkingD){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.HD+10 || _mesh->data(*v_it).label == puzzle.D+10 || _mesh->data(*v_it).label == puzzle.BD+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end(); ++f_it){
+                    if( _mesh->data(*f_it).label == puzzle.H || _mesh->data(*f_it).label == puzzle.M || _mesh->data(*f_it).label == puzzle.B ){
+                        QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
+
+                        if(c.x() > P[0]) {
+                            qDebug() << "face intersection possible";
+                            if( pointIsInTrianglev2(_mesh,
+                                                    QVector3D( P[0], P[1], P[2] ),
+                                                    *f_it) ){
+                                _mesh->data(*v_it).label = 20;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+// --------------------- prototype reduction maillage -----------------
+
+QVector3D MainWindow::getPieceCenter(MyMesh *_mesh, int piece_label){
+
+    int nb_vertices = 0;
+    float pCenterX = 0;
+    float pCenterY = 0;
+    float pCenterZ = 0;
+
+    for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+
+        if( _mesh->data(*v_it).label == piece_label ){
+            nb_vertices++;
+            pCenterX += _mesh->point(*v_it)[0];
+            pCenterY += _mesh->point(*v_it)[1];
+            pCenterZ += _mesh->point(*v_it)[2];
+        }
+
+    }
+
+    return QVector3D( pCenterX/nb_vertices, pCenterY/nb_vertices, pCenterZ/nb_vertices );
+
+}
+
+void MainWindow::reducePiece(MyMesh *_mesh, int piece_label){
+
+    QVector3D pieceCenter = getPieceCenter(_mesh, piece_label);
+
+    for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+
+        if( _mesh->data(*v_it).label == piece_label ){
+
+            //si on se trouve au niveau de la coupure on ne veut pas se rapprocher du centre
+            bool is_boundary = false;
+            MyMesh::VertexEdgeIter ve_it = _mesh->ve_iter(v_it);
+            for(ve_it ; ve_it.is_valid() ; ++ve_it){
+                if(_mesh->is_boundary(ve_it)){
+                    is_boundary = true;
+                    break;
+                }
+            }
+
+            if(!is_boundary){
+                MyMesh::Point p = _mesh->point(*v_it);
+                QVector3D CP = QVector3D( p[0] - pieceCenter.x(),
+                                          p[1] - pieceCenter.y(),
+                                          p[2] - pieceCenter.z());
+                CP = CP*0.01; //reduction
+                _mesh->point(*v_it)[0] = p[0] - CP[0];
+                _mesh->point(*v_it)[1] = p[1] - CP[1];
+                _mesh->point(*v_it)[2] = p[2] - CP[2];
+            }
+        }
+    }
+    displayMesh(_mesh);
+}
+
+void MainWindow::on_pushButton_reduction_clicked(){
+    cout << "reduction clicked" << endl;
+
+    if(ui->comboBox_pieces->currentText() == "HG") reducePiece(&mesh, puzzle.HG);
+    if(ui->comboBox_pieces->currentText() ==  "H") reducePiece(&mesh, puzzle.H);
+    if(ui->comboBox_pieces->currentText() == "HD") reducePiece(&mesh, puzzle.HD);
+    if(ui->comboBox_pieces->currentText() ==  "D") reducePiece(&mesh, puzzle.D);
+    if(ui->comboBox_pieces->currentText() == "BD") reducePiece(&mesh, puzzle.BD);
+    if(ui->comboBox_pieces->currentText() ==  "B") reducePiece(&mesh, puzzle.B);
+    if(ui->comboBox_pieces->currentText() == "BG") reducePiece(&mesh, puzzle.BG);
+    if(ui->comboBox_pieces->currentText() ==  "G") reducePiece(&mesh, puzzle.G);
 
 }
 
@@ -1496,7 +1512,7 @@ void MainWindow::on_pushButton_RG_clicked(){
         for(int i=0 ; i<(int)mesh.n_vertices() ; i++){
             VertexHandle vh = mesh.vertex_handle(i);
             //si on a un vertice labele en bas gauche
-            if( mesh.data(vh).label == puzzle.BG  || mesh.data(vh).label == puzzle.HG ){
+            if( mesh.data(vh).label == puzzle.BG  || mesh.data(vh).label == puzzle.HG || mesh.data(vh).label == puzzle.G ){
                 QVector3D center = QVector3D( mesh.point(vh)[0], center_Y, center_Z );
                 QVector3D original = QVector3D( mesh.point(vh)[0], mesh.point(vh)[1], mesh.point(vh)[2] );
                 QVector3D dist = original - center;
@@ -2117,4 +2133,294 @@ void MainWindow::smoothingCutBorder(MyMesh *_mesh, Plan plan){
     //step 2: création des points sur le plan
     //step 3: couture
 }
-*/
+
+
+void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
+
+    if(puzzle.checkingB){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.BG+10 || _mesh->data(*v_it).label == puzzle.B+10 || _mesh->data(*v_it).label == puzzle.BD+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end(); ++f_it){
+                    if( _mesh->data(*f_it).label == puzzle.G || _mesh->data(*f_it).label == puzzle.M || _mesh->data(*f_it).label == puzzle.G ){
+                        QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
+
+                        if(c.z() > P[2]) {
+                            qDebug() << "face intersection possible";
+                            break;
+                        }
+
+                    }
+                }
+
+                /*
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.G ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.G ).at(i).idx());
+
+                    if(c.z() > P[2]){
+                        qDebug() << "face potentielle sur G";
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.G ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.z() > P[2]){
+                        qDebug() << "face potentielle sur M";
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.D ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.D ).at(i).idx());
+
+                    if(c.z() > P[2]){
+                        //cout << "c.z " << c.z() << " P[2]" << P[2] << endl;
+                        qDebug() << "face potentielle sur D";
+                        cout << "puzzle.D " << puzzle.D << "current" <<  _mesh->data(*v_it).label << endl;
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.D ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+    }*/
+
+    /*
+    if(puzzle.checkingD){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.BD+10 || _mesh->data(*v_it).label == puzzle.D+10 || _mesh->data(*v_it).label == puzzle.HD+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.B ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.B ).at(i).idx());
+
+                    if(c.x() > P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.B ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.x() > P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.H ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.H ).at(i).idx());
+
+                    if(c.x() > P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.H ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    if(puzzle.checkingH){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.HG+10 || _mesh->data(*v_it).label == puzzle.H+10 || _mesh->data(*v_it).label == puzzle.HD+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.G ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.G ).at(i).idx());
+
+                    if(c.z() < P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.G ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.z() < P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.D ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.D ).at(i).idx());
+
+                    if(c.z() < P[2]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.D ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if(puzzle.checkingG){
+
+        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+            //pour chacun des points de la trajectoire des 3 pieces en rotation
+            if( _mesh->data(*v_it).label == puzzle.HG+10 || _mesh->data(*v_it).label == puzzle.G+10 || _mesh->data(*v_it).label == puzzle.BG+10 ){
+                MyMesh::Point P = _mesh->point(v_it);
+
+                //on check chacune des faces des 3 pieces directement liées
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.B ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.B ).at(i).idx());
+
+                    if(c.x() < P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.B ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.M ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.M ).at(i).idx());
+
+                    if(c.x() < P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.M ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+
+                for(int i=0 ; i<(int)piecesFaces.at( puzzle.H ).size() ; i++){
+                    //on vérifie si le vertice se trouve entre la face et le centre du puzzle
+                    //si c'est le cas alors il est possible qu'il soit dans une autre piece
+                    QVector3D c = getCenterOfFace(_mesh, piecesFaces.at( puzzle.H ).at(i).idx());
+
+                    if(c.x() < P[0]){
+                        //il y a possibilité d'être à l'interieur d'une piece
+                        //on trace une droite vers l'exterieur, si on traverse un nombre impair de faces,
+                        //le vertice courant est bel et bien a l'intérieur d'une piece
+                        if( pointIsInTriangle(_mesh,
+                                              QVector3D( P[0], P[1], P[2] ),
+                                              piecesFaces.at( puzzle.H ).at(i)) ){
+                            _mesh->data(*v_it).label = 20;
+                            break; //une seule intersection suffit, on peut passer au point suivant
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}*/
+
+
