@@ -627,7 +627,7 @@ bool edge_intersects(MyMesh *_mesh, const MyMesh::EdgeHandle &eh, QVector3D &p, 
     QVector3D pa = a-p;
     QVector3D pb = b-p;
 
-    return( (QVector3D::dotProduct(pa.normalized(), n) * QVector3D::dotProduct(pb.normalized(), n)) < 0.00000001);
+    return( (QVector3D::dotProduct(pa.normalized(), n) * QVector3D::dotProduct(pb.normalized(), n)) < 0.0000000000001);
 }
 
 MyMesh::HalfedgeHandle find_boundary_edge(MyMesh *_mesh){
