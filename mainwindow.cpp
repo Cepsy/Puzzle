@@ -609,7 +609,7 @@ bool point_is_on_plane(MyMesh *_mesh, const MyMesh::VertexHandle &vh, QVector3D 
     QVector3D a = QVector3D(_mesh->point(vh)[0], _mesh->point(vh)[1], _mesh->point(vh)[2]);
     QVector3D pa = a-p;
 
-    double dot = QVector3D::dotProduct(pa, n);
+    double dot = QVector3D::dotProduct(pa.normalized(), n);
 
     return (dot == 0);
 }
@@ -627,7 +627,7 @@ bool edge_intersects(MyMesh *_mesh, const MyMesh::EdgeHandle &eh, QVector3D &p, 
     QVector3D pa = a-p;
     QVector3D pb = b-p;
 
-    return( (QVector3D::dotProduct(pa, n) * QVector3D::dotProduct(pb, n)) < -0.00000001);
+    return( (QVector3D::dotProduct(pa.normalized(), n) * QVector3D::dotProduct(pb.normalized(), n)) < 0.00000001);
 }
 
 MyMesh::HalfedgeHandle find_boundary_edge(MyMesh *_mesh){
@@ -683,33 +683,40 @@ QVector3D rotate(double rayon, QVector3D barycentre, double angle) {
 
 
 void remeshing(MyMesh *_mesh){
-    HalfedgeHandle heh = find_boundary_edge(_mesh);
-    vector<MyMesh::VertexHandle> boundary = find_boundary(_mesh, heh);
-    QVector3D b = barycentre(_mesh, boundary);
-    VertexHandle bary = _mesh->add_vertex(MyMesh::Point(b.x(), b.y(), b.z()));
+    while(true){
+        HalfedgeHandle heh;
+        try{
+            heh = find_boundary_edge(_mesh);
+        } catch (std::runtime_error err){
+            return;
+        }
 
-    /*
-    double dist = sqrt(pow(_mesh->point(boundary[0])[0] - b.x(), 2) + pow(_mesh->point(boundary[0])[1] - b.y(), 2) + pow(_mesh->point(boundary[0])[2] - b.z(), 2));
-    int angle=0;
-    vector<VertexHandle> remeshPoints;
-    while(angle!=360){
-        //QVector3D tmp = rotate(QVector3D(b.x(), b.y(), b.z()+dist/2), b, angle);
-        QVector3D tmp = rotate(dist/4, b, angle);
-        VertexHandle r = _mesh->add_vertex(MyMesh::Point(tmp.x(), tmp.y(), tmp.z()));
+        vector<MyMesh::VertexHandle> boundary = find_boundary(_mesh, heh);
+        QVector3D b = barycentre(_mesh, boundary);
+        VertexHandle bary = _mesh->add_vertex(MyMesh::Point(b.x(), b.y(), b.z()));
 
-        remeshPoints.push_back(r);
-        angle+=15;
+        /*
+        double dist = sqrt(pow(_mesh->point(boundary[0])[0] - b.x(), 2) + pow(_mesh->point(boundary[0])[1] - b.y(), 2) + pow(_mesh->point(boundary[0])[2] - b.z(), 2));
+        int angle=0;
+        vector<VertexHandle> remeshPoints;
+        while(angle!=360){
+            //QVector3D tmp = rotate(QVector3D(b.x(), b.y(), b.z()+dist/2), b, angle);
+            QVector3D tmp = rotate(dist/4, b, angle);
+            VertexHandle r = _mesh->add_vertex(MyMesh::Point(tmp.x(), tmp.y(), tmp.z()));
+
+            remeshPoints.push_back(r);
+            angle+=15;
+        }
+
+
+        for(int k=0; k<(int)remeshPoints.size();k=k+3){
+            _mesh->add_face(bary, remeshPoints[k], remeshPoints[(k+1)%remeshPoints.size()]);
+
+        }*/
+        for(int i=0; i<(int)boundary.size(); i++){
+            _mesh->add_face(bary, boundary[i], boundary[(i+1)%boundary.size()]);
+        }
     }
-
-
-    for(int k=0; k<(int)remeshPoints.size();k=k+3){
-        _mesh->add_face(bary, remeshPoints[k], remeshPoints[(k+1)%remeshPoints.size()]);
-
-    }*/
-    for(int i=0; i<(int)boundary.size(); i++){
-        _mesh->add_face(bary, boundary[i], boundary[(i+1)%boundary.size()]);
-    }
-
 
 }
 
@@ -733,8 +740,17 @@ void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
                 (p2[1] <= plan.maxY && p2[1] >= plan.minY)){
                 if(edge_intersects(_mesh, *e_it, p, n)){
                     qDebug() << "Edge intersection spotted";
-                    QVector3D nv = edge_plan_intersection(_mesh, *e_it, p, n);
-                    added_vertices.push_back(_mesh->split_copy(*e_it, MyMesh::Point(nv.x(), nv.y(), nv.z())));
+                    bool test = false;
+                    if(point_is_on_plane(_mesh, v1, p, n)){
+                        added_vertices.push_back(v1);
+                        test = true;
+                    }
+
+
+                    if(!test){
+                        QVector3D nv = edge_plan_intersection(_mesh, *e_it, p, n);
+                        added_vertices.push_back(_mesh->split_copy(*e_it, MyMesh::Point(nv.x(), nv.y(), nv.z())));
+                    }
                 }
             }
         }
@@ -1098,7 +1114,7 @@ void MainWindow::addTrajectory(MyMesh *_mesh){
                                                                     "x_axis");
                 //qDebug() << "adding vertex ..";
                 for(int i=0 ; i<(int)traj.size() ; i++){
-                    //qDebug() << "vertex added";
+                    //qDebug() << "vertex added";<
                     VertexHandle vh = _mesh->add_vertex(MyMesh::Point( traj.at(i).x(), traj.at(i).y(), traj.at(i).z() ));
                     if(_mesh->data(*v_it).label == puzzle.BG) trajectoryBuffer1.push_back(vh);
                     else if(_mesh->data(*v_it).label == puzzle.B) trajectoryBuffer2.push_back(vh);
@@ -1204,12 +1220,6 @@ void MainWindow::removeTrajectory(MyMesh *_mesh){
 
 // -- collisions
 
-float MainWindow::getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b){
-    float distance = pow( b.x() - a.x(), 2.0 );
-    distance += pow( b.y() - a.y(), 2.0 );
-    distance += pow( b.z() - a.z(), 2.0 );
-    return sqrt(distance);
-}
 
 float area(float x1, float y1, float x2, float y2, float x3, float y3) {
    return abs( ( x1 * (y2-y3) + x2 * (y3-y1) + x3 * (y1-y2) )/2.0 );

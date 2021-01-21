@@ -105,9 +105,9 @@ public:
     void removeTrajectory(MyMesh *_mesh);
 
     //collisions checking
-    float getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b);
-    void displayTrajectoryOnPlane(MyMesh *_mesh); //or not
-    bool pointIsInTrianglev1(MyMesh *_mesh, QVector3D p, FaceHandle fh);
+    //float getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D b);
+    //void displayTrajectoryOnPlane(MyMesh *_mesh); //or not
+    //bool pointIsInTrianglev1(MyMesh *_mesh, QVector3D p, FaceHandle fh);
     bool pointIsInTrianglev2(MyMesh *_mesh, QVector3D p, FaceHandle fh);
     void checkingTrajectoryCollisions(MyMesh *_mesh);
 
