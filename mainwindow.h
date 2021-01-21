@@ -78,6 +78,10 @@ public:
 
     void displayObjectsValues();
 
+    //selection
+    FaceHandle getLowerFaceLabeled(MyMesh *_mesh, int label);
+    FaceHandle getHigherFaceLabeled(MyMesh *_mesh, int label);
+
     //decoupage
     bool isCutByPlan(MyMesh *_mesh, int faceID, Plan plan);
     void generateCenterCoordinates();
@@ -92,7 +96,6 @@ public:
     void resetFacesLabels(MyMesh *_mesh);
     void resetVertexLabels(MyMesh *_mesh);
     void correctLabelisation(MyMesh *_mesh);
-    void registerFacesAndVertices(MyMesh *_mesh);
 
     //trajectories calculations
     vector<QVector3D> calcTrajectoryCoordinates(QVector3D M, QVector3D O, string orientation);
@@ -148,8 +151,8 @@ private:
 
     PuzzleState puzzle;
 
-    vector<vector<VertexHandle>> piecesVertices;
-    vector<vector<FaceHandle>> piecesFaces;
+    //vector<vector<VertexHandle>> piecesVertices;
+    //vector<vector<FaceHandle>> piecesFaces;
 
     vector<VertexHandle> trajectoryBuffer1;
     vector<VertexHandle> trajectoryBuffer2;
@@ -165,8 +168,6 @@ private:
      * otherwise 0
      * */
 
-
-    vector<int> faceLabeling;
     Plan p_droite;
     Plan p_bas;
     Plan p_gauche;

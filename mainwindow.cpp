@@ -44,8 +44,6 @@ void MainWindow::on_pushButton_beginSelection_clicked(){
 
     // initialisation de valeurs globales
     ESP = 0;
-    faceLabeling.clear();
-    for(int i=0 ; i<(int)mesh.n_faces() ; i++) faceLabeling.push_back(-1);
 
     srand(time(NULL));
     colors.clear();
@@ -192,104 +190,210 @@ void MainWindow::on_pushButton_zPlus_clicked(){
     piecesFlaggingAndColoration(&mesh);
 }
 
+void recursiveConnexLabelEraser(MyMesh *_mesh, FaceHandle fh){
+    int label = _mesh->data(fh).label;
+    _mesh->data(fh).label = 0;
+    MyMesh::FaceFaceIter ff_it = _mesh->ff_begin(fh);
+    for( ; ff_it.is_valid() ; ++ff_it){
+        if( _mesh->data(*ff_it).label == label )
+            recursiveConnexLabelEraser(_mesh, *ff_it);
+    }
+}
+
+
 void MainWindow::on_pushButton_yMinMoins_clicked(){
-    if(ui->comboBox_plans->currentText() == "Corps") corps.minY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Droite") p_droite.minY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Bas") p_bas.minY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.minY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Haut") p_haut.minY-=PAS;
+    if(ui->comboBox_plans->currentText() == "Corps") corps.minY-=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Droite") p_droite.minY-=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Bas") p_bas.minY-=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.minY-=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Haut") p_haut.minY-=2*PAS;
     displayObjectsValues();
     piecesFlaggingAndColoration(&mesh);
+}
+
+FaceHandle MainWindow::getLowerFaceLabeled(MyMesh *_mesh, int label){
+    FaceHandle lowerFace;
+    float y = center_Y;
+    for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end() ; f_it++){
+        if( _mesh->data(*f_it).label == label ){
+            QVector3D c = getCenterOfFace(_mesh, (*f_it).idx());
+            if( c.y() < y ){
+                y = c.y();
+                lowerFace = *f_it;
+            }
+        }
+    }
+    return lowerFace;
 }
 
 void MainWindow::on_pushButton_yMinPlus_clicked(){
-    if(ui->comboBox_plans->currentText() == "Corps") corps.minY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Droite") p_droite.minY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Bas") p_bas.minY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.minY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Haut") p_haut.minY+=PAS;
+    if(ui->comboBox_plans->currentText() == "Corps") {
+        //avant le cut, les faces du corps sont labelées à 0
+
+        //on cherche la face la plus basse
+        FaceHandle lowerFace = getLowerFaceLabeled(&mesh, 1);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, lowerFace);
+
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        lowerFace = getLowerFaceLabeled(&mesh, 1);
+        QVector3D c = getCenterOfFace(&mesh, lowerFace.idx());
+        corps.minY = c.y() - 0.001;
+    }
+
+    //pour ce qui est faces dans les plans, elles sont numérotés selon les plans qui les traverse:
+    //droite 2 bas 3 gauche 4 haut 5
+    if(ui->comboBox_plans->currentText() == "Droite"){
+        //on cherche la face la plus basse
+        FaceHandle lowerFace = getLowerFaceLabeled(&mesh, 2);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, lowerFace);
+
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        lowerFace = getLowerFaceLabeled(&mesh, 2);
+        QVector3D c = getCenterOfFace(&mesh, lowerFace.idx());
+        p_droite.minY = c.y() - 0.001;
+    }
+
+    if(ui->comboBox_plans->currentText() == "Bas"){
+        //on cherche la face la plus basse
+        FaceHandle lowerFace = getLowerFaceLabeled(&mesh, 3);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, lowerFace);
+
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        lowerFace = getLowerFaceLabeled(&mesh, 3);
+        QVector3D c = getCenterOfFace(&mesh, lowerFace.idx());
+        p_bas.minY = c.y()-0.001;
+    }
+
+    if(ui->comboBox_plans->currentText() == "Gauche"){
+        //on cherche la face la plus basse
+        FaceHandle lowerFace = getLowerFaceLabeled(&mesh, 4);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, lowerFace);
+
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        lowerFace = getLowerFaceLabeled(&mesh, 4);
+        QVector3D c = getCenterOfFace(&mesh, lowerFace.idx());
+        p_gauche.minY = c.y() - 0.001;
+    }
+
+    if(ui->comboBox_plans->currentText() == "Haut"){
+        //on cherche la face la plus basse
+        FaceHandle lowerFace = getLowerFaceLabeled(&mesh, 5);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, lowerFace);
+
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        lowerFace = getLowerFaceLabeled(&mesh, 5);
+        QVector3D c = getCenterOfFace(&mesh, lowerFace.idx());
+        p_haut.minY = c.y() - 0.001;
+    }
+
     displayObjectsValues();
     piecesFlaggingAndColoration(&mesh);
 }
 
+FaceHandle MainWindow::getHigherFaceLabeled(MyMesh *_mesh, int label){
+    FaceHandle higherFace;
+    float y = center_Y;
+    for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end() ; f_it++){
+        if( _mesh->data(*f_it).label == label ){
+            QVector3D c = getCenterOfFace(_mesh, (*f_it).idx());
+            if( c.y() > y ){
+                y = c.y();
+                higherFace = *f_it;
+            }
+        }
+    }
+    return higherFace;
+}
+
 void MainWindow::on_pushButton_yMaxMoins_clicked(){
-    if(ui->comboBox_plans->currentText() == "Corps") corps.maxY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Droite") p_droite.maxY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Bas") p_bas.maxY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.maxY-=PAS;
-    if(ui->comboBox_plans->currentText() == "Haut") p_haut.maxY-=PAS;
+    if(ui->comboBox_plans->currentText() == "Corps") {
+        //avant le cut, les faces du corps sont labelées à 1
+
+        //on cherche la face la plus haute
+        FaceHandle higherFace = getHigherFaceLabeled(&mesh, 1);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, higherFace);
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        FaceHandle newHigherFace = getHigherFaceLabeled(&mesh, 1);
+        QVector3D c = getCenterOfFace(&mesh, newHigherFace.idx());
+        corps.maxY = c.y() + 0.001;
+    }
+
+    //pour ce qui est faces dans les plans, elles sont numérotés selon les plans qui les traverse:
+    //droite 2 bas 3 gauche 4 haut 5
+    if(ui->comboBox_plans->currentText() == "Droite"){
+        //on cherche la face la plus haute
+        FaceHandle higherFace = getHigherFaceLabeled(&mesh, 2);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, higherFace);
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        FaceHandle newHigherFace = getHigherFaceLabeled(&mesh, 2);
+        QVector3D c = getCenterOfFace(&mesh, newHigherFace.idx());
+        p_droite.maxY = c.y() + 0.001;
+    }
+
+    if(ui->comboBox_plans->currentText() == "Bas"){
+        //on cherche la face la plus haute
+        FaceHandle higherFace = getHigherFaceLabeled(&mesh, 3);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, higherFace);
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        FaceHandle newHigherFace = getHigherFaceLabeled(&mesh, 3);
+        QVector3D c = getCenterOfFace(&mesh, newHigherFace.idx());
+        p_bas.maxY = c.y() + 0.001;
+    }
+
+    if(ui->comboBox_plans->currentText() == "Gauche"){
+        //on cherche la face la plus haute
+        FaceHandle higherFace = getHigherFaceLabeled(&mesh, 4);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, higherFace);
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        FaceHandle newHigherFace = getHigherFaceLabeled(&mesh, 4);
+        QVector3D c = getCenterOfFace(&mesh, newHigherFace.idx());
+        p_gauche.maxY = c.y() + 0.001;
+    }
+
+    if(ui->comboBox_plans->currentText() == "Haut"){
+        //on cherche la face la plus haute
+        FaceHandle higherFace = getHigherFaceLabeled(&mesh, 5);
+        //on supprime l'ensemble qui lui correspond
+        recursiveConnexLabelEraser(&mesh, higherFace);
+        //on update le corps, pour cela on cherche la nouvelle face la plus basse
+        FaceHandle newHigherFace = getHigherFaceLabeled(&mesh, 5);
+        QVector3D c = getCenterOfFace(&mesh, newHigherFace.idx());
+        p_haut.maxY = c.y() + 0.001;
+    }
+
     displayObjectsValues();
     piecesFlaggingAndColoration(&mesh);
 }
 
 void MainWindow::on_pushButton_yMaxPlus_clicked(){
-    if(ui->comboBox_plans->currentText() == "Corps") corps.maxY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Droite") p_droite.maxY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Bas") p_bas.maxY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.maxY+=PAS;
-    if(ui->comboBox_plans->currentText() == "Haut") p_haut.maxY+=PAS;
+    if(ui->comboBox_plans->currentText() == "Corps") corps.maxY+=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Droite") p_droite.maxY+=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Bas") p_bas.maxY+=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Gauche") p_gauche.maxY+=2*PAS;
+    if(ui->comboBox_plans->currentText() == "Haut") p_haut.maxY+=2*PAS;
     displayObjectsValues();
     piecesFlaggingAndColoration(&mesh);
 }
 
 // ------------------------------------ flaggings & colorations ------------------------
 
-void MainWindow::registerFacesAndVertices(MyMesh *_mesh){
 
-    vector<VertexHandle> v1, v2, v3, v4, v5, v6, v7, v8, v9;
-
-    for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
-        if(_mesh->data(*v_it).label == 1) v1.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 2) v2.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 3) v3.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 4) v4.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 5) v5.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 6) v6.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 7) v7.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 8) v8.push_back(*v_it);
-        if(_mesh->data(*v_it).label == 9) v9.push_back(*v_it);
-    }
-
-    piecesVertices.push_back(v1);
-    piecesVertices.push_back(v2);
-    piecesVertices.push_back(v3);
-    piecesVertices.push_back(v4);
-    piecesVertices.push_back(v5);
-    piecesVertices.push_back(v6);
-    piecesVertices.push_back(v7);
-    piecesVertices.push_back(v8);
-    piecesVertices.push_back(v9);
-
-    vector<FaceHandle> f1, f2, f3, f4, f5, f6, f7, f8, f9;
-
-    for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end() ; ++f_it){
-        if(_mesh->data(*f_it).label == 1) f1.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 2) f2.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 3) f3.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 4) f4.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 5) f5.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 6) f6.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 7) f7.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 8) f8.push_back(*f_it);
-        if(_mesh->data(*f_it).label == 9) f9.push_back(*f_it);
-    }
-
-    piecesFaces.push_back(f1);
-    piecesFaces.push_back(f2);
-    piecesFaces.push_back(f3);
-    piecesFaces.push_back(f4);
-    piecesFaces.push_back(f5);
-    piecesFaces.push_back(f6);
-    piecesFaces.push_back(f7);
-    piecesFaces.push_back(f8);
-    piecesFaces.push_back(f9);
-
-}
 
 void MainWindow::piecesFlaggingAndColoration(MyMesh *_mesh){
     resetAllColorsAndThickness(_mesh);
-    faceLabeling.clear();
-    for(int i=0 ; i<(int)_mesh->n_faces() ; i++) faceLabeling.push_back(-1);
+    resetFacesLabels(_mesh);
+    resetVertexLabels(_mesh);
+
+    //avant le cut, on mets les faces appartenant au corps à 1, celles coupées par des plans à 2,3,4,5 et le reste à 0
 
     // -- FLAGGING DU CORPS
     //parcour de toutes les faces pour déterminer si elles sont dans le corps (completement)
@@ -307,40 +411,41 @@ void MainWindow::piecesFlaggingAndColoration(MyMesh *_mesh){
             }
         }
         if(is_inside){
-            faceLabeling.at(current_face) = 0;
+            _mesh->data(fh).label = 1;
+            _mesh->set_color( fh, colors.at(1) );
             //cout << "is inside" << endl;
         }
     }
 
     // -- SI IL FAUT ENCORE CUT ON COLORIE LES FACES QUI VONT L'ETRE
     if(!isCut){
-        //on commence par colorer le corps et les faces non etiquettées
-        for(int i=0 ; i<(int)faceLabeling.size() ; i++){
-            if(faceLabeling.at(i) == 0) _mesh->set_color(_mesh->face_handle(i), colors.at(0));
-            else if(faceLabeling.at(i) == -1) _mesh->set_color(_mesh->face_handle(i), MyMesh::Color( 150, 150, 150));
-
-        }
-        //puis pour chaque face on vérifie sa candidature à être cut
-        int nb_faces_plans = 0;
-
+        qDebug() << "post cut coloration called";
         for(MyMesh::FaceIter curFace = _mesh->faces_begin(); curFace != _mesh->faces_end(); curFace++){
-            if(isCutByPlan(_mesh, (*curFace).idx(), p_droite) || isCutByPlan(_mesh, (*curFace).idx(), p_bas) ||
-               isCutByPlan(_mesh, (*curFace).idx(), p_gauche) || isCutByPlan(_mesh, (*curFace).idx(), p_haut)){
-                _mesh->set_color(*curFace, colors.at(9));
-                nb_faces_plans++;
-                //cout << "face is in plan" << endl;
+            if(isCutByPlan(_mesh, (*curFace).idx(), p_droite)){
+                _mesh->data(*curFace).label = 2;
+                _mesh->set_color(*curFace, colors.at(2));
+            }
+            else if(isCutByPlan(_mesh, (*curFace).idx(), p_bas)){
+                _mesh->data(*curFace).label = 3;
+                _mesh->set_color(*curFace, colors.at(3));
+            }
+            else if(isCutByPlan(_mesh, (*curFace).idx(), p_gauche)){
+                _mesh->data(*curFace).label = 4;
+                _mesh->set_color(*curFace, colors.at(4));
+            }
+            else if(isCutByPlan(_mesh, (*curFace).idx(), p_haut)){
+                _mesh->data(*curFace).label = 5;
+                _mesh->set_color(*curFace, colors.at(5));
             }
         }
-        cout << "nombre de faces dans les plans : " << nb_faces_plans << "sur " << faceLabeling.size() << endl;
+        //cout << "nombre de faces dans les plans : " << nb_faces_plans << "sur " << faceLabeling.size() << endl;
     }
 
     // -- FLAGGING DES PIECES PUIS COLORATION APRES CUT
     //coloration avec couleurs générées aléatoirement selon les labels de faces
-    else{
+    else if(isCut){
         //flagging
         correctLabelisation(_mesh);
-        //enregistrement dans les tableaux
-        registerFacesAndVertices(_mesh);
         //coloration
         for(auto f_it = _mesh->faces_begin(); f_it != _mesh->faces_end(); f_it++){
             if(_mesh->data(*f_it).label == 0) _mesh->set_color(*f_it, MyMesh::Color( 150, 150, 150));
@@ -368,7 +473,7 @@ void MainWindow::trajectoryColorationUpdate(MyMesh *_mesh){
         if(_mesh->data(*v_it).label >= 10 && _mesh->data(*v_it).label != 20){
             //qDebug() << "vertice trajectoire trouve";
             _mesh->set_color(*v_it, colors.at(_mesh->data(*v_it).label - 10));
-            _mesh->data(*v_it).thickness = 6;
+            _mesh->data(*v_it).thickness = 4;
         }
         if(_mesh->data(*v_it).label == 20){
             _mesh->set_color(*v_it, MyMesh::Color(225, 50, 50));
@@ -392,8 +497,8 @@ bool MainWindow::isCutByPlan(MyMesh *_mesh, int faceID, Plan plan){
     MyMesh::Point C = mesh.point(mesh.vertex_handle((*fv_it).idx()));
 
     //check pour la hauteur axe Y
-    if((A[1] > plan.maxY && B[1] > plan.maxY && C[1] > plan.maxY) ||
-       (A[1] < plan.minY && B[1] < plan.minY && C[1] < plan.minY))
+    if((A[1] > plan.maxY || B[1] > plan.maxY || C[1] > plan.maxY) ||
+       (A[1] < plan.minY || B[1] < plan.minY || C[1] < plan.minY))
         return false;
 
     //on cherche si on travaille sur les X ou les Z
@@ -499,8 +604,18 @@ QVector3D MainWindow::getCenterOfFace(MyMesh *_mesh, int faceID){
     return QVector3D( x/3, y/3, z/3 );
 }
 
+bool point_is_on_plane(MyMesh *_mesh, const MyMesh::VertexHandle &vh, QVector3D &p, QVector3D &n){
+
+    QVector3D a = QVector3D(_mesh->point(vh)[0], _mesh->point(vh)[1], _mesh->point(vh)[2]);
+    QVector3D pa = a-p;
+
+    double dot = QVector3D::dotProduct(pa, n);
+
+    return (dot == 0);
+}
 
 
+//-- reconstruction maillage au niveau des coupures
 bool edge_intersects(MyMesh *_mesh, const MyMesh::EdgeHandle &eh, QVector3D &p, QVector3D &n){
     auto heh = _mesh->halfedge_handle(eh, 0);
     auto vert_a = _mesh->from_vertex_handle(heh);
@@ -512,104 +627,159 @@ bool edge_intersects(MyMesh *_mesh, const MyMesh::EdgeHandle &eh, QVector3D &p, 
     QVector3D pa = a-p;
     QVector3D pb = b-p;
 
-    return( (QVector3D::dotProduct(pa, n) * QVector3D::dotProduct(pb, n)) <= 0);
+    return( (QVector3D::dotProduct(pa, n) * QVector3D::dotProduct(pb, n)) < -0.00000001);
 }
 
-bool point_is_on_plane(MyMesh *_mesh, const MyMesh::VertexHandle &vh, QVector3D &p, QVector3D &n){
+MyMesh::HalfedgeHandle find_boundary_edge(MyMesh *_mesh){
+    MyMesh::HalfedgeIter he_it = _mesh->halfedges_begin();
+    while ( (he_it != _mesh->halfedges_end()) && (!_mesh->is_boundary(*he_it)))
+    {
+        ++he_it ;
+    }
+    if (he_it != _mesh->halfedges_end())
+        return *he_it ;
+    else
+        throw std::runtime_error("Boundary HE does not exist") ;
+}
 
-    QVector3D a = QVector3D(_mesh->point(vh)[0], _mesh->point(vh)[1], _mesh->point(vh)[2]);
-    QVector3D pa = a-p;
 
-    double dot = QVector3D::dotProduct(pa, n);
+vector<MyMesh::VertexHandle> find_boundary(MyMesh *_mesh, MyMesh::HalfedgeHandle heh)
+{
+    MyMesh::HalfedgeHandle heh_ini = heh ;
+    vector<MyMesh::VertexHandle> boundary ;
 
-    return (dot == 0);
+    // Follow (and memorize) boundary edges
+    do
+    {
+        boundary.push_back(_mesh->to_vertex_handle(heh));
+        heh = _mesh->next_halfedge_handle(heh);
+    } while (heh != heh_ini) ;
+    return boundary ;
+}
+
+QVector3D barycentre(MyMesh *_mesh, vector<MyMesh::VertexHandle> boundary){
+    double x=0.0, y=0.0, z=0.0;
+    for(int i=0; i<(int)boundary.size();i++){
+        x += _mesh->point(boundary[i])[0];
+        y += _mesh->point(boundary[i])[1];
+        z += _mesh->point(boundary[i])[2];
+    }
+
+    return QVector3D(x/boundary.size(), y/boundary.size(), z/boundary.size());
+}
+
+
+
+QVector3D rotate(double rayon, QVector3D barycentre, double angle) {
+
+    double x, y;
+    angle = angle*(M_PI / 180);
+
+    x = rayon * cos(angle) + barycentre.x();
+    y = rayon * sin(angle) + barycentre.y();
+    return (QVector2D(x, y));
+
+}
+
+
+void remeshing(MyMesh *_mesh){
+    HalfedgeHandle heh = find_boundary_edge(_mesh);
+    vector<MyMesh::VertexHandle> boundary = find_boundary(_mesh, heh);
+    QVector3D b = barycentre(_mesh, boundary);
+    VertexHandle bary = _mesh->add_vertex(MyMesh::Point(b.x(), b.y(), b.z()));
+
+    /*
+    double dist = sqrt(pow(_mesh->point(boundary[0])[0] - b.x(), 2) + pow(_mesh->point(boundary[0])[1] - b.y(), 2) + pow(_mesh->point(boundary[0])[2] - b.z(), 2));
+    int angle=0;
+    vector<VertexHandle> remeshPoints;
+    while(angle!=360){
+        //QVector3D tmp = rotate(QVector3D(b.x(), b.y(), b.z()+dist/2), b, angle);
+        QVector3D tmp = rotate(dist/4, b, angle);
+        VertexHandle r = _mesh->add_vertex(MyMesh::Point(tmp.x(), tmp.y(), tmp.z()));
+
+        remeshPoints.push_back(r);
+        angle+=15;
+    }
+
+
+    for(int k=0; k<(int)remeshPoints.size();k=k+3){
+        _mesh->add_face(bary, remeshPoints[k], remeshPoints[(k+1)%remeshPoints.size()]);
+
+    }*/
+    for(int i=0; i<(int)boundary.size(); i++){
+        _mesh->add_face(bary, boundary[i], boundary[(i+1)%boundary.size()]);
+    }
+
+
 }
 
 void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
     qDebug() << "cutting mesh along a plane";
-    _mesh->request_vertex_status();
-    _mesh->request_edge_status();
-    _mesh->request_face_status();
+        _mesh->request_vertex_status();
+        _mesh->request_edge_status();
+        _mesh->request_face_status();
 
-    n.normalize();
-    std::vector<MyMesh::VertexHandle> added_vertices;
-    int n_edges = _mesh->n_edges();
-    int curedge = 0;
-    for(auto e_it = _mesh->edges_begin(); e_it != _mesh->edges_end(); e_it++){
-
-        if(++curedge >= n_edges)
-            break;
-
-        HalfedgeHandle ah = _mesh->halfedge_handle(e_it, 0);
-        VertexHandle v1 = _mesh->from_vertex_handle(ah);
-        VertexHandle v2 = _mesh->to_vertex_handle(ah);
-        MyMesh::Point p1 = _mesh->point(v1);
-        MyMesh::Point p2 = _mesh->point(v2);
+        n.normalize();
+        std::vector<MyMesh::VertexHandle> added_vertices;
+        for(auto e_it = _mesh->edges_begin(); e_it != _mesh->edges_end(); e_it++){
+            HalfedgeHandle ah = _mesh->halfedge_handle(e_it, 0);
+            VertexHandle v1 = _mesh->from_vertex_handle(ah);
+            VertexHandle v2 = _mesh->to_vertex_handle(ah);
+            MyMesh::Point p1 = _mesh->point(v1);
+            MyMesh::Point p2 = _mesh->point(v2);
 
 
-        if( (p1[1] <= plan.maxY && p1[1] >= plan.minY) &&
-            (p2[1] <= plan.maxY && p2[1] >= plan.minY)){
-            if(edge_intersects(_mesh, *e_it, p, n)){
-                //qDebug() << "Edge intersection spotted";
-                bool a_vertex_is_on_p = false;
-                if(point_is_on_plane(_mesh, v1, p, n)){
-                    added_vertices.push_back(v1);
-                    a_vertex_is_on_p = true;
-                }
-/*
-                if(point_is_on_plane(_mesh, v2, p, n)){
-                    added_vertices.push_back(v2);
-                    a_vertex_is_on_p = true;
-                }
-*/
-                if(!a_vertex_is_on_p){
+            if( (p1[1] <= plan.maxY && p1[1] >= plan.minY) &&
+                (p2[1] <= plan.maxY && p2[1] >= plan.minY)){
+                if(edge_intersects(_mesh, *e_it, p, n)){
+                    qDebug() << "Edge intersection spotted";
                     QVector3D nv = edge_plan_intersection(_mesh, *e_it, p, n);
                     added_vertices.push_back(_mesh->split_copy(*e_it, MyMesh::Point(nv.x(), nv.y(), nv.z())));
                 }
             }
         }
-    }
 
-    qDebug() << added_vertices.size() << " new vertices added ! ";
-    int count = 0;
-    for(auto vert:added_vertices){
-        qDebug() << count++;
-        auto vert_copy = _mesh->add_vertex(MyMesh::Point(_mesh->point(vert)[0], _mesh->point(vert)[1], _mesh->point(vert)[2]));
+        qDebug() << added_vertices.size() << " new vertices added ! ";
+        int count = 0;
+        for(auto vert:added_vertices){
+            qDebug() << count++;
+            auto vert_copy = _mesh->add_vertex(MyMesh::Point(_mesh->point(vert)[0], _mesh->point(vert)[1], _mesh->point(vert)[2]));
 
-        vector<MyMesh::FaceHandle> faces;
-        for(auto vf_it = _mesh->vf_begin(vert) ; vf_it.is_valid(); vf_it++){
-            for(auto fv_it = _mesh->fv_begin(*vf_it); fv_it.is_valid(); fv_it++){
-            QVector3D vert_as_vect = QVector3D(_mesh->point(*fv_it)[0], _mesh->point(*fv_it)[1], _mesh->point(*fv_it)[2]);
-                if(QVector3D::dotProduct((vert_as_vect-p).normalized(), n) > 0.000001){
-                    faces.push_back(*vf_it);
-                    break;
-                }else if(QVector3D::dotProduct((vert_as_vect-p).normalized(), n) < -0.000001){
-                    break;
+            vector<MyMesh::FaceHandle> faces;
+            for(auto vf_it = _mesh->vf_begin(vert) ; vf_it.is_valid(); vf_it++){
+                for(auto fv_it = _mesh->fv_begin(*vf_it); fv_it.is_valid(); fv_it++){
+                QVector3D vert_as_vect = QVector3D(_mesh->point(*fv_it)[0], _mesh->point(*fv_it)[1], _mesh->point(*fv_it)[2]);
+                    if(QVector3D::dotProduct((vert_as_vect-p), n) > 0.0001){
+                        faces.push_back(*vf_it);
+                        break;
+                    }else if(QVector3D::dotProduct((vert_as_vect-p), n) < -0.0001){
+                        break;
+                    }
+                }
+            }
+            for(auto fh:faces){
+                //qDebug() << "aled";
+                bool update_face = false;
+                std::vector<VertexHandle> face_vertices;
+                for(auto fv_it = _mesh->fv_begin(fh); fv_it.is_valid(); fv_it++){
+                    if(*fv_it == vert){
+                        face_vertices.push_back(vert_copy);
+                    }else{
+                        face_vertices.push_back(*fv_it);
+                    }
+                }
+
+                if(face_vertices.size() == 3){
+                    _mesh->delete_face(fh, false);
+                    _mesh->add_face(face_vertices);
+                    _mesh->garbage_collection();
+                    _mesh->request_vertex_status();
+                    _mesh->request_edge_status();
+                    _mesh->request_face_status();
                 }
             }
         }
-        for(auto fh:faces){
-            //qDebug() << "aled";
-            bool update_face = false;
-            std::vector<VertexHandle> face_vertices;
-            for(auto fv_it = _mesh->fv_begin(fh); fv_it.is_valid(); fv_it++){
-                if(*fv_it == vert){
-                    face_vertices.push_back(vert_copy);
-                }else{
-                    face_vertices.push_back(*fv_it);
-                }
-            }
-
-            if(face_vertices.size() == 3){
-                _mesh->delete_face(fh, false);
-                _mesh->add_face(face_vertices);
-                _mesh->garbage_collection();
-                _mesh->request_vertex_status();
-                _mesh->request_edge_status();
-                _mesh->request_face_status();
-            }
-        }
-    }
+        remeshing(_mesh);
 }
 
 void MainWindow::on_pushButton_decoupage_clicked(){
@@ -1041,90 +1211,6 @@ float MainWindow::getDistanceBtw2Vertices(MyMesh *_mesh, QVector3D a, QVector3D 
     return sqrt(distance);
 }
 
-/*void MainWindow::displayTrajectoryOnPlane(MyMesh *_mesh){
-
-    if(puzzle.checkingB){
-
-        for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
-
-            if(_mesh->data(*v_it).label == puzzle.BG){
-                MyMesh::Point Porigine = _mesh->point(v_it);
-                //le z reste inchangé
-                float z = Porigine[2];
-                //le y du point projeté sur le plan va correspondre a la distance
-                //entre le point d'origine et la droite Oz passant par le centre de rotation
-                float y = getDistanceBtw2Vertices( _mesh,
-                                                   QVector3D(Porigine[0], Porigine[1], Porigine[2]),
-                                                   QVector3D( center_X, center_Y, Porigine[2] ));
-                //pour le moment centré
-                float x = center_X;
-            }
-        }
-    }
-
-    if(puzzle.checkingD){
-
-    }
-
-    if(puzzle.checkingH){
-
-    }
-
-    if(puzzle.checkingG){
-
-    }
-}*/
-
-float sign(QVector3D p1, QVector3D p2, QVector3D p3, string axis){
-    if(axis == "z_axis") return (p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.x() - p3.y());
-    else if (axis == "x_axis") return (p1.z() - p3.z()) * (p2.y() - p3.y()) - (p2.z() - p3.z()) * (p1.z() - p3.y());
-}
-
-bool MainWindow::pointIsInTrianglev1(MyMesh *_mesh, QVector3D p, FaceHandle fh){
-    float d1, d2, d3;
-    bool has_neg, has_pos;
-
-    MyMesh::FaceVertexIter fv_it = _mesh->fv_iter(fh);
-    MyMesh::Point a = _mesh->point(fv_it); fv_it++;
-    MyMesh::Point b = _mesh->point(fv_it); fv_it++;
-    MyMesh::Point c = _mesh->point(fv_it);
-
-    if(puzzle.checkingD || puzzle.checkingG){
-        d1 = sign( p,
-                   QVector3D( a[0], a[1], a[2] ),
-                   QVector3D( b[0], b[1], b[2] ),
-                   "z_axis");
-        d2 = sign( p,
-                   QVector3D( b[0], b[1], b[2] ),
-                   QVector3D( c[0], c[1], c[2] ),
-                   "z_axis");
-        d3 = sign( p,
-                   QVector3D( c[0], c[1], c[2] ),
-                   QVector3D( a[0], a[1], a[2] ),
-                   "z_axis");
-    }
-
-    if(puzzle.checkingH || puzzle.checkingB){
-        d1 = sign( p,
-                   QVector3D( a[0], a[1], a[2] ),
-                   QVector3D( b[0], b[1], b[2] ),
-                   "x_axis");
-        d2 = sign( p,
-                   QVector3D( b[0], b[1], b[2] ),
-                   QVector3D( c[0], c[1], c[2] ),
-                   "x_axis");
-        d3 = sign( p,
-                   QVector3D( c[0], c[1], c[2] ),
-                   QVector3D( a[0], a[1], a[2] ),
-                   "x_axis");
-    }
-
-    has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-    return !(has_neg && has_pos);
-}
-
 float area(float x1, float y1, float x2, float y2, float x3, float y3) {
    return abs( ( x1 * (y2-y3) + x2 * (y3-y1) + x3 * (y1-y2) )/2.0 );
 }
@@ -1198,7 +1284,7 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
                         QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
 
                         if(c.z() > P[2]) {
-                            qDebug() << "face intersection possible";
+                            //qDebug() << "face intersection possible";
                             if( pointIsInTrianglev2(_mesh,
                                                     QVector3D( P[0], P[1], P[2] ),
                                                     *f_it) ){
@@ -1227,7 +1313,7 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
                         QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
 
                         if(c.z() < P[2]) {
-                            qDebug() << "face intersection possible";
+                            //qDebug() << "face intersection possible";
                             if( pointIsInTrianglev2(_mesh,
                                                     QVector3D( P[0], P[1], P[2] ),
                                                     *f_it) ){
@@ -1255,7 +1341,7 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
                         QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
 
                         if(c.x() < P[0]) {
-                            qDebug() << "face intersection possible";
+                            //qDebug() << "face intersection possible";
                             if( pointIsInTrianglev2(_mesh,
                                                     QVector3D( P[0], P[1], P[2] ),
                                                     *f_it) ){
@@ -1283,7 +1369,7 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
                         QVector3D c = getCenterOfFace( _mesh, (*f_it).idx() );
 
                         if(c.x() > P[0]) {
-                            qDebug() << "face intersection possible";
+                            //qDebug() << "face intersection possible";
                             if( pointIsInTrianglev2(_mesh,
                                                     QVector3D( P[0], P[1], P[2] ),
                                                     *f_it) ){
@@ -1774,7 +1860,7 @@ MainWindow::~MainWindow()
 }
 
 
-/*
+/* -- cimetiere
 //check intersection au niveau de l'axe X
 if((A[0] <= plan.xA && B[0] >= plan.xA) || (B[0] <= plan.xA && A[0] >= plan.xA) ||
    (A[0] <= plan.xB && B[0] >= plan.xB) || (B[0] <= plan.xB && A[0] >= plan.xB) ||
@@ -2421,6 +2507,197 @@ void MainWindow::checkingTrajectoryCollisions(MyMesh *_mesh){
         }
     }
 
-}*/
+void MainWindow::registerFacesAndVertices(MyMesh *_mesh){
+
+    vector<VertexHandle> v1, v2, v3, v4, v5, v6, v7, v8, v9;
+
+    for(auto v_it = _mesh->vertices_begin() ; v_it != _mesh->vertices_end() ; ++v_it){
+        if(_mesh->data(*v_it).label == 1) v1.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 2) v2.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 3) v3.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 4) v4.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 5) v5.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 6) v6.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 7) v7.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 8) v8.push_back(*v_it);
+        if(_mesh->data(*v_it).label == 9) v9.push_back(*v_it);
+    }
+
+    piecesVertices.push_back(v1);
+    piecesVertices.push_back(v2);
+    piecesVertices.push_back(v3);
+    piecesVertices.push_back(v4);
+    piecesVertices.push_back(v5);
+    piecesVertices.push_back(v6);
+    piecesVertices.push_back(v7);
+    piecesVertices.push_back(v8);
+    piecesVertices.push_back(v9);
+
+    vector<FaceHandle> f1, f2, f3, f4, f5, f6, f7, f8, f9;
+
+    for(auto f_it = _mesh->faces_begin() ; f_it != _mesh->faces_end() ; ++f_it){
+        if(_mesh->data(*f_it).label == 1) f1.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 2) f2.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 3) f3.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 4) f4.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 5) f5.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 6) f6.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 7) f7.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 8) f8.push_back(*f_it);
+        if(_mesh->data(*f_it).label == 9) f9.push_back(*f_it);
+    }
+
+    piecesFaces.push_back(f1);
+    piecesFaces.push_back(f2);
+    piecesFaces.push_back(f3);
+    piecesFaces.push_back(f4);
+    piecesFaces.push_back(f5);
+    piecesFaces.push_back(f6);
+    piecesFaces.push_back(f7);
+    piecesFaces.push_back(f8);
+    piecesFaces.push_back(f9);
+
+}
+
+}
+
+
+float sign(QVector3D p1, QVector3D p2, QVector3D p3, string axis){
+    if(axis == "z_axis") return (p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.x() - p3.y());
+    else if (axis == "x_axis") return (p1.z() - p3.z()) * (p2.y() - p3.y()) - (p2.z() - p3.z()) * (p1.z() - p3.y());
+}
+
+bool MainWindow::pointIsInTrianglev1(MyMesh *_mesh, QVector3D p, FaceHandle fh){
+    float d1, d2, d3;
+    bool has_neg, has_pos;
+
+    MyMesh::FaceVertexIter fv_it = _mesh->fv_iter(fh);
+    MyMesh::Point a = _mesh->point(fv_it); fv_it++;
+    MyMesh::Point b = _mesh->point(fv_it); fv_it++;
+    MyMesh::Point c = _mesh->point(fv_it);
+
+    if(puzzle.checkingD || puzzle.checkingG){
+        d1 = sign( p,
+                   QVector3D( a[0], a[1], a[2] ),
+                   QVector3D( b[0], b[1], b[2] ),
+                   "z_axis");
+        d2 = sign( p,
+                   QVector3D( b[0], b[1], b[2] ),
+                   QVector3D( c[0], c[1], c[2] ),
+                   "z_axis");
+        d3 = sign( p,
+                   QVector3D( c[0], c[1], c[2] ),
+                   QVector3D( a[0], a[1], a[2] ),
+                   "z_axis");
+    }
+
+    if(puzzle.checkingH || puzzle.checkingB){
+        d1 = sign( p,
+                   QVector3D( a[0], a[1], a[2] ),
+                   QVector3D( b[0], b[1], b[2] ),
+                   "x_axis");
+        d2 = sign( p,
+                   QVector3D( b[0], b[1], b[2] ),
+                   QVector3D( c[0], c[1], c[2] ),
+                   "x_axis");
+        d3 = sign( p,
+                   QVector3D( c[0], c[1], c[2] ),
+                   QVector3D( a[0], a[1], a[2] ),
+                   "x_axis");
+    }
+
+    has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+    return !(has_neg && has_pos);
+}
+
+void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
+    qDebug() << "cutting mesh along a plane";
+    _mesh->request_vertex_status();
+    _mesh->request_edge_status();
+    _mesh->request_face_status();
+
+    n.normalize();
+    std::vector<MyMesh::VertexHandle> added_vertices;
+    int n_edges = _mesh->n_edges();
+    int curedge = 0;
+    for(auto e_it = _mesh->edges_begin(); e_it != _mesh->edges_end(); e_it++){
+
+        if(++curedge >= n_edges)
+            break;
+
+        HalfedgeHandle ah = _mesh->halfedge_handle(e_it, 0);
+        VertexHandle v1 = _mesh->from_vertex_handle(ah);
+        VertexHandle v2 = _mesh->to_vertex_handle(ah);
+        MyMesh::Point p1 = _mesh->point(v1);
+        MyMesh::Point p2 = _mesh->point(v2);
+
+
+        if( (p1[1] <= plan.maxY && p1[1] >= plan.minY) &&
+            (p2[1] <= plan.maxY && p2[1] >= plan.minY)){
+            if(edge_intersects(_mesh, *e_it, p, n)){
+                //qDebug() << "Edge intersection spotted";
+                bool a_vertex_is_on_p = false;
+                if(point_is_on_plane(_mesh, v1, p, n)){
+                    added_vertices.push_back(v1);
+                    a_vertex_is_on_p = true;
+                }
+              //  if(point_is_on_plane(_mesh, v2, p, n)){
+                //    added_vertices.push_back(v2);
+                  //  a_vertex_is_on_p = true;
+                //}
+                //if(!a_vertex_is_on_p){
+                  //  QVector3D nv = edge_plan_intersection(_mesh, *e_it, p, n);
+                    //added_vertices.push_back(_mesh->split_copy(*e_it, MyMesh::Point(nv.x(), nv.y(), nv.z())));
+               // }
+            }
+        }
+    }
+
+    qDebug() << added_vertices.size() << " new vertices added ! ";
+    int count = 0;
+    for(auto vert:added_vertices){
+        qDebug() << count++;
+        auto vert_copy = _mesh->add_vertex(MyMesh::Point(_mesh->point(vert)[0], _mesh->point(vert)[1], _mesh->point(vert)[2]));
+
+        vector<MyMesh::FaceHandle> faces;
+        for(auto vf_it = _mesh->vf_begin(vert) ; vf_it.is_valid(); vf_it++){
+            for(auto fv_it = _mesh->fv_begin(*vf_it); fv_it.is_valid(); fv_it++){
+            QVector3D vert_as_vect = QVector3D(_mesh->point(*fv_it)[0], _mesh->point(*fv_it)[1], _mesh->point(*fv_it)[2]);
+                if(QVector3D::dotProduct((vert_as_vect-p).normalized(), n) > 0.000001){
+                    faces.push_back(*vf_it);
+                    break;
+                }else if(QVector3D::dotProduct((vert_as_vect-p).normalized(), n) < -0.000001){
+                    break;
+                }
+            }
+        }
+        for(auto fh:faces){
+            //qDebug() << "aled";
+            bool update_face = false;
+            std::vector<VertexHandle> face_vertices;
+            for(auto fv_it = _mesh->fv_begin(fh); fv_it.is_valid(); fv_it++){
+                if(*fv_it == vert){
+                    face_vertices.push_back(vert_copy);
+                }else{
+                    face_vertices.push_back(*fv_it);
+                }
+            }
+
+            if(face_vertices.size() == 3){
+                _mesh->delete_face(fh, false);
+                _mesh->add_face(face_vertices);
+                _mesh->garbage_collection();
+                _mesh->request_vertex_status();
+                _mesh->request_edge_status();
+                _mesh->request_face_status();
+            }
+        }
+    }
+}
+
+
+*/
 
 
