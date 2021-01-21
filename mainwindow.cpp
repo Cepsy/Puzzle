@@ -728,7 +728,15 @@ void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
 
         n.normalize();
         std::vector<MyMesh::VertexHandle> added_vertices;
+
+        int n_edges = _mesh->n_edges();
+        int curedge = 0;
+
         for(auto e_it = _mesh->edges_begin(); e_it != _mesh->edges_end(); e_it++){
+
+            if(curedge++ >= n_edges)
+                break;
+
             HalfedgeHandle ah = _mesh->halfedge_handle(e_it, 0);
             VertexHandle v1 = _mesh->from_vertex_handle(ah);
             VertexHandle v2 = _mesh->to_vertex_handle(ah);
@@ -746,6 +754,10 @@ void cut_mesh(MyMesh *_mesh, QVector3D p, QVector3D n, Plan plan){
                         test = true;
                     }
 
+                    if(point_is_on_plane(_mesh, v2, p, n)){
+                        added_vertices.push_back(v2);
+                        test = true;
+                    }
 
                     if(!test){
                         QVector3D nv = edge_plan_intersection(_mesh, *e_it, p, n);
